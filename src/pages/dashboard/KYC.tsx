@@ -6,7 +6,7 @@ import { useAuth } from '../../App';
 
 export default function KYCPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [document, setDocument] = useState<File | null>(null);
   const [selfie, setSelfie] = useState<File | null>(null);
@@ -54,7 +54,7 @@ export default function KYCPage() {
       
       if (res.ok) {
         toast.success('KYC documents submitted! Please wait for review.');
-        window.location.reload();
+        setUser((prev: any) => prev ? { ...prev, kycStatus: 'PENDING' } : prev);
       } else {
         const data = await res.json();
         toast.error(data.error || 'Failed to submit KYC');

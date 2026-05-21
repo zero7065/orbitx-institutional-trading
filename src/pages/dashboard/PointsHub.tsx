@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Coins, Zap, Gift, TrendingUp, Clock, CheckCircle, Loader2, Award, Star, Flame, Diamond, Sparkles, Activity, LogIn, HandCoins, ArrowRight, RotateCcw } from 'lucide-react';
 
@@ -11,6 +12,7 @@ const DAILY_ACTIVITIES = [
 ];
 
 export default function PointsHub() {
+  const navigate = useNavigate();
   const [points, setPoints] = useState<any>(null);
   const [claiming, setClaiming] = useState<string | null>(null);
   const [claimedToday, setClaimedToday] = useState<string[]>([]);
@@ -157,7 +159,7 @@ export default function PointsHub() {
           <div className="glass-card p-6">
             <h3 className="font-black text-sm mb-3 flex items-center gap-2"><Gift className="text-brand-teal" size={16} /> Quick Swap</h3>
             <p className="text-xs text-gray-500 mb-4">Visit the Swap Shop to exchange points for tokens, NFTs, and more</p>
-            <button onClick={() => window.location.href = '/dashboard/points-shop'} className="w-full py-3 bg-gradient-to-r from-brand-teal to-purple-600 text-white font-bold rounded-xl flex items-center justify-center gap-2">
+            <button onClick={() => navigate('/dashboard/points-shop')} className="w-full py-3 bg-gradient-to-r from-brand-teal to-purple-600 text-white font-bold rounded-xl flex items-center justify-center gap-2">
               <ArrowRight size={16} /> Go to Swap Shop
             </button>
           </div>

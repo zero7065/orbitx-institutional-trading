@@ -1,16 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { CreditCard, Building, Wallet, ArrowRight, Loader2, Bitcoin, Coins } from 'lucide-react';
+import { CreditCard, Building, Wallet, ArrowRight, Loader2 } from 'lucide-react';
 
 interface PaymentMethod {
-  id: string;
-  name: string;
-  type: string;
-  provider?: string;
-  details?: string;
-  minAmount: number;
-  maxAmount: number;
-  feePercent: number;
+  id: string; name: string; type: string; provider?: string; details?: string; minAmount: number; maxAmount: number; feePercent: number;
 }
 
 const CRYPTO_OPTIONS = [
@@ -29,36 +22,27 @@ export default function BuyCryptoPage() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [step, setStep] = useState(1);
+  const [rates, setRates] = useState<any>({});
 
   useEffect(() => {
     fetch('/api/payment-methods').then(r => r.json()).then(data => {
       setPaymentMethods(data);
       if (data.length > 0) setSelectedPayment(data[0].id);
       setLoading(false);
-    });
+    }).catch(() => setLoading(false));
+    fetch('/api/live-rates').then(r => r.json()).then(setRates).catch(() => {});
   }, []);
 
   const selectedPaymentMethod = paymentMethods.find(p => p.id === selectedPayment);
-  const fee = selectedPaymentMethod ? parseFloat(amount) * (selectedPaymentMethod.feePercent / 100) : 0;
-  const total = parseFloat(amount) + fee;
+  const fee = selectedPaymentMethod && amount ? parseFloat(amount) * (selectedPaymentMethod.feePercent / 100) : 0;
+  const total = (parseFloat(amount) || 0) + fee;
+  const cryptoPrice = rates[selectedCrypto]?.price || 65000;
+  const receivedCrypto = amount && cryptoPrice > 0 ? (parseFloat(amount) / cryptoPrice) : 0;
 
-  const getCryptoIcon = (symbol: string) => {
-    const crypto = CRYPTO_OPTIONS.find(c => c.symbol === symbol);
-    return crypto?.icon || '?';
-  };
-
-  const getCryptoColor = (symbol: string) => {
-    const crypto = CRYPTO_OPTIONS.find(c => c.symbol === symbol);
-    return crypto?.color || '#888';
-  };
+  const getCryptoColor = (symbol: string) => CRYPTO_OPTIONS.find(c => c.symbol === symbol)?.color || '#888';
 
   const getPaymentIcon = (type: string) => {
-    switch (type) {
-      case 'CARD': return <CreditCard size={20} />;
-      case 'BANK': return <Building size={20} />;
-      case 'WALLET': return <Wallet size={20} />;
-      default: return <CreditCard size={20} />;
-    }
+    switch (type) { case 'CARD': return <CreditCard size={20} />; case 'BANK': return <Building size={20} />; case 'WALLET': return <Wallet size={20} />; default: return <CreditCard size={20} />; }
   };
 
   const handlePurchase = async () => {
@@ -121,15 +105,8 @@ export default function BuyCryptoPage() {
             <label className="block text-sm font-bold text-gray-400 mb-3">Select Cryptocurrency</label>
             <div className="grid grid-cols-3 gap-3">
               {CRYPTO_OPTIONS.map((crypto) => (
-                <button
-                  key={crypto.symbol}
-                  onClick={() => setSelectedCrypto(crypto.symbol)}
-                  className={`p-4 rounded-xl border text-center transition-all ${
-                    selectedCrypto === crypto.symbol
-                      ? 'border-brand-teal bg-brand-teal/10'
-                      : 'border-white/10 hover:bg-white/5'
-                  }`}
-                >
+                <button key={crypto.symbol} onClick={() => setSelectedCrypto(crypto.symbol)}
+                  className={`p-4 rounded-xl border text-center transition-all ${selectedCrypto === crypto.symbol ? 'border-brand-teal bg-brand-teal/10' : 'border-white/10 hover:bg-white/5'}`}>
                   <div className="text-2xl mb-1" style={{ color: getCryptoColor(crypto.symbol) }}>{crypto.icon}</div>
                   <div className="font-black text-sm">{crypto.symbol}</div>
                 </button>
@@ -141,21 +118,12 @@ export default function BuyCryptoPage() {
             <label className="block text-sm font-bold text-gray-400 mb-3">Select Payment Method</label>
             <div className="space-y-2">
               {paymentMethods.map((method) => (
-                <button
-                  key={method.id}
-                  onClick={() => setSelectedPayment(method.id)}
-                  className={`w-full p-4 rounded-xl border flex items-center gap-4 transition-all ${
-                    selectedPayment === method.id
-                      ? 'border-brand-teal bg-brand-teal/10'
-                      : 'border-white/10 hover:bg-white/5'
-                  }`}
-                >
-                  <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-gray-400">
-                    {getPaymentIcon(method.type)}
-                  </div>
+                <button key={method.id} onClick={() => setSelectedPayment(method.id)}
+                  className={`w-full p-4 rounded-xl border flex items-center gap-4 transition-all ${selectedPayment === method.id ? 'border-brand-teal bg-brand-teal/10' : 'border-white/10 hover:bg-white/5'}`}>
+                  <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-gray-400">{getPaymentIcon(method.type)}</div>
                   <div className="flex-1 text-left">
                     <div className="font-bold">{method.name}</div>
-                    <div className="text-xs text-gray-500">{method.provider || method.type} • {method.feePercent}% fee</div>
+                    <div className="text-xs text-gray-500">{method.provider || method.type} &bull; {method.feePercent}% fee</div>
                   </div>
                 </button>
               ))}
@@ -164,13 +132,8 @@ export default function BuyCryptoPage() {
 
           <div>
             <label className="block text-sm font-bold text-gray-400 mb-3">Amount (USD)</label>
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-4 px-4 text-2xl font-bold outline-none focus:ring-2 focus:ring-brand-teal"
-              placeholder="0.00"
-            />
+            <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl py-4 px-4 text-2xl font-bold outline-none focus:ring-2 focus:ring-brand-teal" placeholder="0.00" />
             {selectedPaymentMethod && (
               <div className="flex justify-between text-xs text-gray-500 mt-2 px-2">
                 <span>Min: ${selectedPaymentMethod.minAmount}</span>
@@ -182,13 +145,18 @@ export default function BuyCryptoPage() {
 
         <div className="glass-card p-6">
           <h3 className="font-black text-lg mb-6">Order Summary</h3>
-          
+
           <div className="space-y-4 mb-6">
             <div className="flex justify-between items-center p-3 bg-white/5 rounded-xl">
               <span className="text-gray-400">You Pay</span>
               <span className="font-bold text-xl">${amount || '0.00'}</span>
             </div>
-            
+
+            <div className="flex justify-between items-center p-3 bg-white/5 rounded-xl">
+              <span className="text-gray-400">Live Rate</span>
+              <span className="font-bold text-brand-teal">1 {selectedCrypto} = ${cryptoPrice.toFixed(2)}</span>
+            </div>
+
             <div className="flex justify-between items-center p-3 bg-white/5 rounded-xl">
               <span className="text-gray-400">Processing Fee</span>
               <span className="font-bold">${fee.toFixed(2)}</span>
@@ -203,29 +171,16 @@ export default function BuyCryptoPage() {
               <span className="text-gray-400">You Receive</span>
               <div className="text-right">
                 <span className="font-black text-xl" style={{ color: getCryptoColor(selectedCrypto) }}>
-                  {amount ? (parseFloat(amount) / 65000).toFixed(6) : '0.000000'}
+                  {receivedCrypto > 0 ? receivedCrypto.toFixed(6) : '0.000000'}
                 </span>
                 <span className="text-gray-500 text-sm ml-2">{selectedCrypto}</span>
               </div>
             </div>
           </div>
 
-          <button
-            onClick={handlePurchase}
-            disabled={processing || !amount || parseFloat(amount) <= 0}
-            className="w-full py-4 gradient-teal text-slate-900 font-bold rounded-xl flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            {processing ? (
-              <>
-                <Loader2 className="animate-spin" size={20} />
-                Processing...
-              </>
-            ) : (
-              <>
-                Buy {selectedCrypto}
-                <ArrowRight size={20} />
-              </>
-            )}
+          <button onClick={handlePurchase} disabled={processing || !amount || parseFloat(amount) <= 0}
+            className="w-full py-4 gradient-teal text-slate-900 font-bold rounded-xl flex items-center justify-center gap-2 disabled:opacity-50">
+            {processing ? (<><Loader2 className="animate-spin" size={20} /> Processing...</>) : (<> Buy {selectedCrypto} <ArrowRight size={20} /></>)}
           </button>
 
           <p className="text-xs text-gray-500 text-center mt-4">

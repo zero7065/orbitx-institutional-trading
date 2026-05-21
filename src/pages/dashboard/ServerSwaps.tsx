@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { ArrowLeftRight, TrendingUp, Clock, CheckCircle, XCircle, Loader2, Plus, ArrowUp, ArrowDown, Bitcoin, DollarSign } from 'lucide-react';
+import { ArrowLeftRight, TrendingUp, Clock, CheckCircle, XCircle, Loader2, Plus, ArrowUp, ArrowDown } from 'lucide-react';
+import { useAuth } from '../../App';
 
 const CRYPTO_OPTIONS = [
   { symbol: 'BTC', name: 'Bitcoin', color: '#F7931A' },
@@ -11,6 +12,7 @@ const CRYPTO_OPTIONS = [
 ];
 
 export default function ServerSwaps() {
+  const { user } = useAuth();
   const [orders, setOrders] = useState<any[]>([]);
   const [myOrders, setMyOrders] = useState<any[]>([]);
   const [showCreate, setShowCreate] = useState(false);
@@ -30,7 +32,7 @@ export default function ServerSwaps() {
       const res = await fetch(`/api/swaps/orders?${params}`);
       const data = await res.json();
       setOrders(data || []);
-    } catch (e) { console.error(e); }
+    } catch (e) { toast.error('Failed to load orders'); }
     finally { setLoading(false); }
   };
 
@@ -38,7 +40,7 @@ export default function ServerSwaps() {
     try {
       const res = await fetch('/api/swaps/orders?status=PENDING,FILLED,CANCELLED');
       const data = await res.json();
-      setMyOrders(data?.filter((o: any) => o.userEmail !== 'admin@cryptovault.io') || []);
+      setMyOrders(data?.filter((o: any) => o.userEmail === user?.email) || []);
     } catch (e) { console.error(e); }
   };
 

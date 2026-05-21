@@ -8,10 +8,10 @@ export default function PointsShop() {
   const [swapping, setSwapping] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { Promise.all([fetchItems(), fetchPoints()]).then(() => setLoading(false)); }, []);
+  useEffect(() => { Promise.all([fetchItems(), fetchPoints()]).then(() => setLoading(false)).catch(() => setLoading(false)); }, []);
 
-  const fetchItems = async () => { const r = await fetch('/api/points/rewards'); setItems(await r.json()); };
-  const fetchPoints = async () => { const r = await fetch('/api/points'); setPoints(await r.json()); };
+  const fetchItems = async () => { try { const r = await fetch('/api/points/rewards'); setItems(await r.json()); } catch { setItems([]); } };
+  const fetchPoints = async () => { try { const r = await fetch('/api/points'); setPoints(await r.json()); } catch { setPoints(null); } };
 
   const handleSwap = async (itemId: string) => {
     setSwapping(itemId);

@@ -172,7 +172,7 @@ async function startServer() {
     await prisma.user.update({ where: { id: user.id }, data: { lastLoginDate: now, loginStreak, lastActivityAt: now } });
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET);
     res.cookie('token', token, { httpOnly: true });
-    res.json({ user: { id: user.id, email: user.email, role: user.role, balance: user.balance } });
+    res.json({ user: { id: user.id, email: user.email, role: user.role, balance: user.balance, kycStatus: user.kycStatus, status: user.status } });
   });
 
   app.post('/api/auth/logout', (req, res) => { res.clearCookie('token'); res.json({ message: 'Logged out' }); });
@@ -248,7 +248,10 @@ async function startServer() {
 
     await new Promise(resolve => setTimeout(resolve, 1500));
 
-    const cryptoPrice = cryptoType === 'BTC' ? 65000 : cryptoType === 'ETH' ? 3500 : cryptoType === 'USDT' ? 1 : 500;
+    const basePrices: any = { BTC: 65432.10, ETH: 3456.78, USDT: 1.00, SOL: 143.50, BNB: 598.20 };
+    const volatility = 0.02;
+    const basePrice = basePrices[cryptoType] || 500;
+    const cryptoPrice = basePrice + basePrice * (Math.random() - 0.5) * volatility;
     const cryptoAmount = amount / cryptoPrice;
 
     const deposit = await prisma.deposit.create({

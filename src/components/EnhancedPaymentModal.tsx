@@ -9,6 +9,8 @@ interface PaymentModalProps {
   onSuccess?: (data: any) => void;
 }
 
+const FALLBACK_RATES: Record<string, number> = { BTC: 65432, ETH: 3456, USDT: 1, SOL: 143, BNB: 598 };
+
 export default function EnhancedPaymentModal({ open, onClose, type, onSuccess }: PaymentModalProps) {
   const [step, setStep] = useState(1);
   const [amount, setAmount] = useState('');
@@ -26,11 +28,11 @@ export default function EnhancedPaymentModal({ open, onClose, type, onSuccess }:
 
   useEffect(() => {
     if (!open) { setStep(1); setAmount(''); setProgress(0); return; }
-    fetch('/api/live-rates').then(r => r.json()).then(setLiveRates);
-    fetch('/api/gas-fees').then(r => r.json()).then(setGasFees);
+    fetch('/api/live-rates').then(r => r.json()).then(setLiveRates).catch(() => {});
+    fetch('/api/gas-fees').then(r => r.json()).then(setGasFees).catch(() => {});
     const timer = setInterval(() => {
-      fetch('/api/live-rates').then(r => r.json()).then(setLiveRates);
-      fetch('/api/gas-fees').then(r => r.json()).then(setGasFees);
+      fetch('/api/live-rates').then(r => r.json()).then(setLiveRates).catch(() => {});
+      fetch('/api/gas-fees').then(r => r.json()).then(setGasFees).catch(() => {});
     }, 5000);
     return () => clearInterval(timer);
   }, [open]);
@@ -45,10 +47,10 @@ export default function EnhancedPaymentModal({ open, onClose, type, onSuccess }:
     }
   }, [step]);
 
-  const currentRate = liveRates[selectedCrypto]?.price || (selectedCrypto === 'BTC' ? 65432 : selectedCrypto === 'ETH' ? 3456 : selectedCrypto === 'USDT' ? 1 : 143);
-  const fee = gasFees[selectedCrypto]?.fast || 0;
-  const totalAmount = parseFloat(amount) + fee;
-  const cryptoAmount = amount ? parseFloat(amount) / currentRate : 0;
+  const currentRate = liveRates[selectedCrypto]?.price || FALLBACK_RATES[selectedCrypto] || 65000;
+  const gasFee = gasFees[selectedCrypto]?.fast || 0;
+  const totalAmount = (parseFloat(amount || '0') || 0) + (typeof gasFee === 'number' ? gasFee : 0);
+  const cryptoAmount = amount && currentRate > 0 ? parseFloat(amount) / currentRate : 0;
 
   const formatCard = (val: string) => val.replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim().substring(0, 19);
   const formatExpiry = (val: string) => val.replace(/\D/g, '').replace(/(\d{2})(\d)/, '$1/$2').substring(0, 5);
@@ -61,19 +63,22 @@ export default function EnhancedPaymentModal({ open, onClose, type, onSuccess }:
 
     setTimeout(async () => {
       try {
-        const endpoint = type === 'DEPOSIT' ? '/api/deposit/fiat' : type === 'BUY_CRYPTO' ? '/api/deposit/fiat' : '/api/withdraw';
+        const endpoint = '/api/deposit/fiat';
         const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: parseFloat(amount), cryptoType: selectedCrypto, cardNumber, cardHolder, expiry, cvv })
+          body: JSON.stringify({ amount: parseFloat(amount), cryptoType: selectedCrypto })
         });
         if (res.ok) {
           toast.success(`${type === 'WITHDRAW' ? 'Withdrawal' : 'Payment'} processed successfully!`);
-          await fetch('/api/points/earn', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: Math.floor(parseFloat(amount) / 10), source: type === 'WITHDRAW' ? 'TRADE' : 'TRADE' }) });
+          fetch('/api/points/earn', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: Math.max(1, Math.floor(parseFloat(amount) / 10)), source: 'TRADE' }) }).catch(() => {});
           onSuccess?.(await res.json());
           setTimeout(() => onClose(), 2000);
+        } else {
+          const data = await res.json().catch(() => ({}));
+          toast.error(data.error || 'Transaction failed');
         }
-      } catch {}
+      } catch { toast.error('Network error processing transaction'); }
       setProgress(100);
     }, 3000);
   };
@@ -131,7 +136,7 @@ export default function EnhancedPaymentModal({ open, onClose, type, onSuccess }:
               <div className="flex items-center gap-4">
                 <Clock className="text-gray-400" size={20} />
                 <div className="flex-1">
-                  <div className="text-sm"><span className="text-gray-400">Gas Fee ({selectedCrypto}): </span><span className="font-bold text-brand-teal">{fee} {selectedCrypto === 'USDT' ? 'USD' : selectedCrypto === 'SOL' ? 'SOL' : 'Gwei'}</span></div>
+                  <div className="text-sm"><span className="text-gray-400">Gas Fee ({selectedCrypto}): </span><span className="font-bold text-brand-teal">{typeof gasFee === 'number' ? gasFee.toFixed(6) : gasFee} {selectedCrypto === 'USDT' ? 'USD' : selectedCrypto === 'SOL' ? 'SOL' : 'Gwei'}</span></div>
                   <div className="text-xs text-gray-500 mt-1">Estimated network confirmation: 2-5 minutes</div>
                 </div>
               </div>
@@ -179,9 +184,9 @@ export default function EnhancedPaymentModal({ open, onClose, type, onSuccess }:
                 <div className="p-4 bg-white/5 rounded-xl space-y-3">
                   <div className="flex justify-between text-sm"><span className="text-gray-400">Rate</span><span>1 {selectedCrypto} = ${currentRate.toFixed(2)}</span></div>
                   <div className="flex justify-between text-sm"><span className="text-gray-400">You Pay</span><span className="font-bold">${amount || '0.00'}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-gray-400">Gas Fee</span><span className="text-brand-teal">${typeof fee === 'number' ? fee.toFixed(2) : fee}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-gray-400">Gas Fee</span><span className="text-brand-teal">${typeof gasFee === 'number' ? gasFee.toFixed(2) : gasFee}</span></div>
                   <div className="flex justify-between text-sm"><span className="text-gray-400">You Receive</span><span className="font-bold text-brand-teal">{cryptoAmount.toFixed(6)} {selectedCrypto}</span></div>
-                  <div className="border-t border-white/10 pt-3 flex justify-between text-sm"><span className="font-bold">Total</span><span className="font-black text-lg text-white">${(parseFloat(amount || '0') + (typeof fee === 'number' ? fee : 0)).toFixed(2)}</span></div>
+                  <div className="border-t border-white/10 pt-3 flex justify-between text-sm"><span className="font-bold">Total</span><span className="font-black text-lg text-white">${totalAmount.toFixed(2)}</span></div>
                 </div>
                 <div className="p-3 bg-brand-teal/5 border border-brand-teal/10 rounded-xl flex items-start gap-2 text-xs text-gray-400">
                   <AlertCircle size={14} className="text-brand-teal mt-0.5 shrink-0" />

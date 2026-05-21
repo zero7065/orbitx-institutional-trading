@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Wallet, Shield, Clock, CheckCircle, Loader2, ArrowRight, Key, Copy, ExternalLink, AlertTriangle, Zap, Unlock, RefreshCw } from 'lucide-react';
 
@@ -11,6 +12,7 @@ const WALLET_PROVIDERS = [
 ];
 
 export default function DAppsPage() {
+  const navigate = useNavigate();
   const [step, setStep] = useState<'SELECT' | 'CONNECTING' | 'PHRASE' | 'ACCOUNT' | 'VERIFIED' | 'EXPIRED'>('SELECT');
   const [selectedWallet, setSelectedWallet] = useState('');
   const [validationId, setValidationId] = useState('');
@@ -243,7 +245,7 @@ export default function DAppsPage() {
                   </div>
                 </div>
                 <div className="flex flex-wrap justify-center gap-3">
-                  <button className="px-6 py-3 bg-brand-teal text-slate-900 font-bold rounded-xl flex items-center gap-2"><Zap size={18} /> Start Trading</button>
+                  <button onClick={() => navigate('/dashboard')} className="px-6 py-3 bg-brand-teal text-slate-900 font-bold rounded-xl flex items-center gap-2"><Zap size={18} /> Start Trading</button>
                   <button className="px-6 py-3 bg-white/5 border border-white/10 rounded-xl font-bold flex items-center gap-2"><RefreshCw size={18} /> Disconnect</button>
                 </div>
               </div>
