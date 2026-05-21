@@ -1,0 +1,332 @@
+// OrbitX Institutional Trading Platform - Complete Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// ==================== USER MODEL ====================
+model User {
+  id             String        @id @default(uuid())
+  email          String        @unique
+  password       String
+  balance        Float         @default(0)
+  totalDeposited Float         @default(0)
+  totalWithdrawn Float         @default(0)
+  totalEarned    Float         @default(0)
+  referralCode   String        @unique
+  referredBy     String?
+  role           String        @default("USER") // USER, ADMIN
+  status         String        @default("ACTIVE") // ACTIVE, SUSPENDED, BANNED
+  kycStatus      String        @default("NONE") // NONE, PENDING, APPROVED, REJECTED
+  kycDocument    String?
+  kycSelfie      String?
+  avatar         String?
+  dashboardLayout String?
+  pin            String        @default("1234")
+  loginStreak    Int           @default(0)
+  lastLoginDate  DateTime?
+  lastActivityAt DateTime?
+  adminNote      String?
+  depositAddresses String?     // JSON: { "BTC": "address", "ETH": "address" }
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  
+  deposits       Deposit[]
+  withdrawals    Withdrawal[]
+  transactions   Transaction[]
+  investments    Investment[]
+  notifications  Notification[]
+}
+
+// ==================== PLATFORM SETTINGS ====================
+model PlatformSettings {
+  id                   String   @id @default("default")
+  platformName         String   @default("OrbitX")
+  logoUrl              String?
+  faviconUrl           String?
+  primaryColor         String   @default("#00D1FF")
+  secondaryColor      String   @default("#F0B90B")
+  maintenanceMode      Boolean  @default(false)
+  registrationEnabled  Boolean  @default(true)
+  minDeposit           Float    @default(10)
+  maxDeposit           Float    @default(100000)
+  minWithdrawal        Float    @default(20)
+  maxWithdrawal        Float    @default(50000)
+  withdrawalFeePercent Float   @default(2)
+  referralBonus        Float    @default(5)
+  referralBonusPercent Float   @default(3)
+  spinEnabled          Boolean  @default(true)
+  kycRequired          Boolean  @default(false)
+  tradingEnabled       Boolean  @default(true)
+  investmentEnabled    Boolean  @default(true)
+  // Social Links
+  telegramLink         String?
+  twitterLink          String?
+  facebookLink         String?
+  instagramLink        String?
+  youtubeLink          String?
+  discordLink          String?
+  // Contact
+  supportEmail         String?
+  contactPhone         String?
+  companyAddress       String?
+  // Legal
+  termsUrl             String?
+  privacyUrl           String?
+  // Stats (auto-calculated)
+  totalUsers           Int      @default(0)
+  totalDeposits        Float    @default(0)
+  totalWithdrawals     Float    @default(0)
+  activeInvestments    Float    @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+// ==================== CRYPTO NETWORKS ====================
+model CryptoNetwork {
+  id                  String   @id @default(uuid())
+  name                String   // "Bitcoin", "Ethereum"
+  symbol              String   // "BTC", "ETH"
+  nameLower           String   // "bitcoin", "ethereum"
+  icon                String?
+  color               String   @default("#F7931A")
+  // Admin-controlled wallet addresses
+  depositAddress      String?
+  withdrawalAddress  String?
+  // Network settings
+  networkName         String?  // "Bitcoin", "Ethereum Mainnet"
+  chainId             String?
+  // Limits & Fees
+  minDeposit          Float    @default(0)
+  minWithdrawal       Float    @default(0)
+  networkFee          Float    @default(0)
+  withdrawalFee       Float    @default(0)
+  // Status
+  enabled             Boolean  @default(true)
+  depositEnabled      Boolean  @default(true)
+  withdrawalEnabled  Boolean  @default(true)
+  // Display
+  sortOrder           Int      @default(0)
+  // Timestamps
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  deposits            Deposit[]
+  withdrawals         Withdrawal[]
+}
+
+// ==================== INVESTMENT PLANS ====================
+model InvestmentPlan {
+  id              String   @id @default(uuid())
+  name            String   // "Alpha Reserve", "Sigma Prime"
+  nameAr          String?  // Arabic name
+  description     String
+  descriptionAr   String?
+  roi             Float    // 18.5 (percentage)
+  roiType         String   @default("DAILY") // DAILY, WEEKLY, MONTHLY, ONETIME
+  durationHours   Int      // 24, 48, 72
+  durationDays    Float    // 1, 2, 3
+  minAmount       Float
+  maxAmount       Float
+  color           String   @default("#00D1FF")
+  icon            String?
+  imageUrl        String?
+  active          Boolean  @default(true)
+  featured        Boolean  @default(false)
+  priority        Int      @default(0)
+  // Limits
+  maxInvestmentsPerUser Int @default(10)
+  totalCapacity          Float @default(0) // 0 = unlimited
+  currentInvested        Float @default(0)
+  // Tier requirement
+  requiredKycLevel String  @default("NONE") // NONE, BASIC, ADVANCED
+  // Auto-complete
+  autoComplete    Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  investments     Investment[]
+}
+
+// ==================== INVESTMENTS ====================
+model Investment {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  planId          String
+  plan            InvestmentPlan @relation(fields: [planId], references: [id])
+  amount          Float
+  roi             Float    // The ROI % at time of investment
+  roiType         String
+  expectedReturn  Float
+  actualReturn    Float?
+  profit          Float    @default(0)
+  startTime       DateTime @default(now())
+  endTime         DateTime
+  completedAt     DateTime?
+  status          String   @default("ACTIVE") // ACTIVE, COMPLETED, CANCELLED, CANCELLED_ADMIN
+  note            String?
+  createdAt       DateTime @default(now())
+}
+
+// ==================== DEPOSITS ====================
+model Deposit {
+  id          String        @id @default(uuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  networkId   String?
+  network     CryptoNetwork? @relation(fields: [networkId], references: [id])
+  amount      Float
+  cryptoAmount Float?
+  cryptoType  String        // BTC, ETH, USDT
+  txHash      String?
+  fromAddress String?
+  toAddress   String?
+  confirmations Int        @default(0)
+  status      String        @default("PENDING") // PENDING, CONFIRMED, FAILED, CANCELLED
+  adminNote   String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+// ==================== WITHDRAWALS ====================
+model Withdrawal {
+  id            String        @id @default(uuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  networkId     String?
+  network       CryptoNetwork? @relation(fields: [networkId], references: [id])
+  amount        Float
+  cryptoAmount  Float?
+  cryptoType    String
+  walletAddress String
+  txHash        String?
+  fee           Float         @default(0)
+  netAmount     Float
+  status        String        @default("PENDING") // PENDING, APPROVED, REJECTED, PROCESSING, COMPLETED, FAILED
+  adminNote     String?
+  processedAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+// ==================== TRANSACTIONS ====================
+model Transaction {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  type        String   // DEPOSIT, WITHDRAWAL, INVESTMENT, INVESTMENT_RETURN, REFERRAL, BONUS, SPIN_WIN, ADMIN_CREDIT, ADMIN_DEBIT
+  amount      Float
+  fee         Float    @default(0)
+  netAmount   Float?
+  description String
+  referenceId String?  // Related object ID
+  createdAt   DateTime @default(now())
+}
+
+// ==================== NOTIFICATIONS ====================
+model Notification {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  title       String
+  message     String
+  type        String   @default("INFO") // INFO, WARNING, SUCCESS, ERROR, SYSTEM
+  link        String?
+  read        Boolean  @default(false)
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+}
+
+// ==================== ANNOUNCEMENTS ====================
+model Announcement {
+  id          String   @id @default(uuid())
+  title       String
+  message     String
+  type        String   @default("INFO") // INFO, WARNING, SUCCESS
+  imageUrl    String?
+  link        String?
+  showOnLanding Boolean @default(true)
+  showOnDashboard Boolean @default(true)
+  active      Boolean  @default(true)
+  priority    Int      @default(0)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime @default(now())
+}
+
+// ==================== AUDIT LOG ====================
+model AuditLog {
+  id          String   @id @default(uuid())
+  adminId     String
+  adminEmail  String
+  action      String   // UPDATE_USER_BALANCE, APPROVE_WITHDRAWAL, etc.
+  targetType  String   // USER, WITHDRAWAL, DEPOSIT, PLAN, SETTINGS
+  targetId    String
+  targetEmail String?  // User email if applicable
+  oldValue    String?  // JSON
+  newValue    String?  // JSON
+  description String?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+}
+
+// ==================== SPIN PRIZES ====================
+model SpinPrize {
+  id            String   @id @default(uuid())
+  label         String
+  labelAr       String?
+  probability   Float
+  rewardAmount  Float
+  rewardCrypto  String
+  rewardType    String   @default("BALANCE") // BALANCE, INVESTMENT, POINTS
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+}
+
+// ==================== ADS ====================
+model Ad {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  imageUrl    String
+  link        String
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+// ==================== SUPPORT TICKETS ====================
+model SupportTicket {
+  id          String   @id @default(uuid())
+  userId      String
+  userEmail   String
+  subject     String
+  message     String
+  priority    String   @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  status      String   @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+  adminResponse String?
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ==================== PAYMENT METHODS ====================
+model PaymentMethod {
+  id          String   @id @default(uuid())
+  name        String   // "Bank Transfer", "Credit Card", "PayPal"
+  type        String   // "BANK", "CARD", "WALLET"
+  provider     String?  // "Visa", "Mastercard", "PayPal"
+  details     String?   // JSON: { "bankName": "...", "accountNumber": "...", "routingNumber": "..." }
+  minAmount    Float    @default(0)
+  maxAmount    Float    @default(100000)
+  feePercent   Float    @default(0)
+  enabled     Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
