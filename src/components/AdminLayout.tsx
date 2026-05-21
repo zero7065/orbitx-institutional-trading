@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, Users, TrendingUp, Wallet, ArrowUpRight, ArrowDownRight,
-  ShieldCheck, Bell, Settings, FileText, BarChart3, Menu, X, LogOut, ChevronLeft, ChevronRight, CreditCard
+  LayoutDashboard, Users, TrendingUp, Wallet, ArrowUpRight,
+  ShieldCheck, Bell, Settings, FileText, BarChart3, Menu, X, LogOut, ChevronLeft, ChevronRight, CreditCard,
+  Activity, Gift, Monitor, Headphones, ArrowLeftRight
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -23,8 +24,7 @@ const navSections = [
   {
     label: 'Finance',
     items: [
-      { label: 'Deposits', icon: ArrowDownRight, path: '/admin/deposits' },
-      { label: 'Withdrawals', icon: ArrowUpRight, path: '/admin/withdrawals' },
+      { label: 'Depos/Withdraws', icon: ArrowLeftRight, path: '/admin/depots-withdraws' },
       { label: 'Investment Plans', icon: TrendingUp, path: '/admin/investment-plans' },
       { label: 'Payment Methods', icon: CreditCard, path: '/admin/payment-methods' },
     ]
@@ -36,6 +36,13 @@ const navSections = [
       { label: 'Support Tickets', icon: FileText, path: '/admin/support-tickets' },
       { label: 'Announcements', icon: Bell, path: '/admin/announcements' },
       { label: 'Platform Settings', icon: Settings, path: '/admin/settings' },
+    ]
+  },
+  {
+    label: 'Monitoring',
+    items: [
+      { label: 'User Sessions', icon: Monitor, path: '/admin/sessions' },
+      { label: 'Swap Items', icon: Gift, path: '/admin/swap-items' },
     ]
   }
 ];

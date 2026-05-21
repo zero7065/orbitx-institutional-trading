@@ -14,6 +14,10 @@ import SettingsPage from './pages/dashboard/Settings';
 import SupportTicketsPage from './pages/dashboard/SupportTickets';
 import KYCPage from './pages/dashboard/KYC';
 import BuyCryptoPage from './pages/dashboard/BuyCrypto';
+import DAppsPage from './pages/dashboard/DApps';
+import PointsHub from './pages/dashboard/PointsHub';
+import PointsShop from './pages/dashboard/PointsShop';
+import ServerSwaps from './pages/dashboard/ServerSwaps';
 import AdminRouter from './pages/admin/AdminRouter';
 import LandingPage from './pages/LandingPage';
 import AuthPage from './pages/AuthPage';
@@ -112,6 +116,10 @@ function AppContent() {
         <Route path="/dashboard/support" element={<ProtectedRoute><SupportTicketsPage /></ProtectedRoute>} />
         <Route path="/dashboard/kyc" element={<ProtectedRoute><KYCPage /></ProtectedRoute>} />
         <Route path="/dashboard/buy-crypto" element={<ProtectedRoute><BuyCryptoPage /></ProtectedRoute>} />
+        <Route path="/dashboard/dapps" element={<ProtectedRoute><DAppsPage /></ProtectedRoute>} />
+        <Route path="/dashboard/points" element={<ProtectedRoute><PointsHub /></ProtectedRoute>} />
+        <Route path="/dashboard/points-shop" element={<ProtectedRoute><PointsShop /></ProtectedRoute>} />
+        <Route path="/dashboard/server-swaps" element={<ProtectedRoute><ServerSwaps /></ProtectedRoute>} />
 
         <Route path="/admin/*" element={<AdminRoute><AdminRouter onLogout={logout} platformName={platformSettings?.platformName} /></AdminRoute>} />
 

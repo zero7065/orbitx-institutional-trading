@@ -3,9 +3,11 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   LayoutDashboard, Wallet, History, Users, Settings, TrendingUp, RotateCcw,
-  Award, Menu, LogOut, ArrowUpRight, ShieldCheck, User, ChevronLeft, ChevronRight, Bell, CreditCard
+  Award, Menu, LogOut, ArrowUpRight, ShieldCheck, User, ChevronLeft, ChevronRight, Bell, CreditCard,
+  Coins, Gift, Cpu, Headphones, ArrowLeftRight
 } from 'lucide-react';
 import { useAuth } from '../App';
+import FloatingContactButton from './FloatingContactButton';
 
 const formatUSD = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
 
@@ -22,7 +24,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  useEffect(() => { fetchStats(); }, []);
+  useEffect(() => {
+    fetchStats();
+    fetch('/api/session/track', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userAgent: navigator.userAgent, deviceInfo: navigator.userAgent, isIncognito: !navigator.cookieEnabled })
+    }).catch(() => {});
+  }, []);
 
   const navItems = [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
@@ -30,10 +38,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: 'Deposit', icon: Wallet, path: '/dashboard/deposit' },
     { label: 'Buy Crypto', icon: CreditCard, path: '/dashboard/buy-crypto' },
     { label: 'Withdraw', icon: ArrowUpRight, path: '/dashboard/withdraw' },
+    { label: 'DApps', icon: Cpu, path: '/dashboard/dapps' },
+    { label: 'Points', icon: Coins, path: '/dashboard/points' },
+    { label: 'Swap Shop', icon: Gift, path: '/dashboard/points-shop' },
     { label: 'History', icon: History, path: '/dashboard/history' },
     { label: 'Affiliates', icon: Users, path: '/dashboard/referrals' },
     { label: 'Lucky Wheel', icon: RotateCcw, path: '/dashboard/spin' },
     { label: 'Incentives', icon: Award, path: '/dashboard/rewards' },
+    { label: 'Server Swaps', icon: ArrowLeftRight, path: '/dashboard/server-swaps' },
+    { label: 'Support', icon: Headphones, path: '/dashboard/support' },
     { label: 'Settings', icon: Settings, path: '/dashboard/settings' },
   ];
 
@@ -143,6 +156,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {children}
             </motion.div>
           </AnimatePresence>
+          <FloatingContactButton />
         </div>
       </main>
     </div>

