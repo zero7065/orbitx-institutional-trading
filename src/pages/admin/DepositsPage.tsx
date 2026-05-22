@@ -10,22 +10,26 @@ export default function DepositsPage() {
 
   const fetchDeposits = async () => {
     setLoading(true);
-    const res = await fetch('/api/admin/deposits');
-    const data = await res.json();
-    setDeposits(data);
-    setLoading(false);
+    try {
+      const res = await fetch('/api/admin/deposits');
+      if (res.ok) setDeposits(await res.json());
+      else toast.error('Failed to load deposits');
+    } catch (e) { toast.error('Network error loading deposits'); }
+    finally { setLoading(false); }
   };
 
   useEffect(() => { fetchDeposits(); }, []);
 
   const handleManualDeposit = async () => {
-    const res = await fetch('/api/admin/deposits', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...manualForm, status: 'CONFIRMED' })
-    });
-    if (res.ok) { toast.success('Manual deposit created'); setShowManual(false); setManualForm({ userId: '', amount: 0, cryptoType: 'USDT', txHash: '' }); fetchDeposits(); }
-    else toast.error('Failed to create deposit');
+    try {
+      const res = await fetch('/api/admin/deposits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...manualForm, status: 'CONFIRMED' })
+      });
+      if (res.ok) { toast.success('Manual deposit created'); setShowManual(false); setManualForm({ userId: '', amount: 0, cryptoType: 'USDT', txHash: '' }); fetchDeposits(); }
+      else { const d = await res.json().catch(() => ({})); toast.error(d.error || 'Failed to create deposit'); }
+    } catch (e) { toast.error('Network error creating deposit'); }
   };
 
   if (loading) return <div className="animate-pulse text-center py-20 text-gray-500 text-sm">Loading deposits...</div>;

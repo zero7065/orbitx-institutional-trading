@@ -21,6 +21,7 @@ model User {
   referralCode   String        @unique
   referredBy     String?
   role           String        @default("USER") // USER, ADMIN
+  tier           String        @default("STANDARD") // STANDARD, PRO
   status         String        @default("ACTIVE") // ACTIVE, SUSPENDED, BANNED
   kycStatus      String        @default("NONE") // NONE, PENDING, APPROVED, REJECTED
   kycDocument    String?

@@ -17,13 +17,18 @@ interface AdminStats {
 
 export default function AdminDashboardOverview() {
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [growth, setGrowth] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchStats = async () => {
+    setLoading(true);
     try {
-      const res = await fetch('/api/admin/stats');
-      const data = await res.json();
-      setStats(data);
+      const [statsRes, growthRes] = await Promise.all([
+        fetch('/api/admin/stats'),
+        fetch('/api/admin/growth')
+      ]);
+      if (statsRes.ok) setStats(await statsRes.json());
+      if (growthRes.ok) setGrowth(await growthRes.json());
     } catch (e) {
       console.error('Failed to fetch admin stats', e);
     } finally {
@@ -74,25 +79,25 @@ export default function AdminDashboardOverview() {
         <div className="xl:col-span-2 bg-white/5 border border-white/10 rounded-2xl p-6">
           <h3 className="font-black uppercase tracking-widest text-xs text-gray-500 mb-6">Platform Growth</h3>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={[
-                { month: 'Jan', users: 5, deposits: 1200 }, { month: 'Feb', users: 12, deposits: 3400 },
-                { month: 'Mar', users: 18, deposits: 5600 }, { month: 'Apr', users: 25, deposits: 8200 },
-                { month: 'May', users: 35, deposits: 12400 }, { month: 'Jun', users: 42, deposits: 18500 },
-              ]}>
-                <defs>
-                  <linearGradient id="usersGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#4b5563', fontSize: 10 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#4b5563', fontSize: 10 }} />
-                <Tooltip contentStyle={{ backgroundColor: '#0B0E11', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }} />
-                <Area type="monotone" dataKey="users" stroke="#8B5CF6" strokeWidth={2} fillOpacity={1} fill="url(#usersGrad)" />
-              </AreaChart>
-            </ResponsiveContainer>
+            {growth.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={growth}>
+                  <defs>
+                    <linearGradient id="usersGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#4b5563', fontSize: 10 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#4b5563', fontSize: 10 }} />
+                  <Tooltip contentStyle={{ backgroundColor: '#0B0E11', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }} />
+                  <Area type="monotone" dataKey="users" stroke="#8B5CF6" strokeWidth={2} fillOpacity={1} fill="url(#usersGrad)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500 text-sm">No growth data yet</div>
+            )}
           </div>
         </div>
 

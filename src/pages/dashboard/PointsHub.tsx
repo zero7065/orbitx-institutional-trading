@@ -61,7 +61,7 @@ export default function PointsHub() {
     }
   };
 
-  if (!points) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brand-teal" size={32} /></div>;
+  if (!points) return <div className="flex flex-col items-center justify-center py-20 gap-4"><Loader2 className="animate-spin text-brand-teal" size={32} /><span className="text-gray-500 text-sm">Loading points...</span><button onClick={fetchPoints} className="text-brand-teal text-xs font-bold hover:underline">Retry</button></div>;
 
   const TierIcon = getTierIcon(points.tier);
 

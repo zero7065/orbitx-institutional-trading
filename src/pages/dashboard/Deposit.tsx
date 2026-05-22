@@ -1,53 +1,62 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Copy, QrCode as QrIcon } from 'lucide-react';
+import { Copy, QrCode as QrIcon, Loader2 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { toast } from 'sonner';
 import { useAuth } from '../../App';
 
-const CRYPTO_ADDRS: Record<string, string> = {
-  BTC: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-  ETH: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-  USDT: 'TPY7t3S8Z6qWc9m55XmZ4A9Y1W2Q3R4S5T',
-};
-
 export default function DepositPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [selectedCrypto, setSelectedCrypto] = useState('BTC');
+  const [networks, setNetworks] = useState<any[]>([]);
+  const [selectedCrypto, setSelectedCrypto] = useState('');
   const [amount, setAmount] = useState('');
   const [qr, setQr] = useState('');
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
     if (user && user.kycStatus !== 'APPROVED') {
       navigate('/dashboard/kyc', { replace: true });
     }
+    fetch('/api/networks')
+      .then(r => r.json())
+      .then(data => {
+        const active = data.filter((n: any) => n.depositEnabled);
+        setNetworks(active);
+        if (active.length > 0) setSelectedCrypto(active[0].symbol);
+      })
+      .catch(() => toast.error('Failed to load networks'))
+      .finally(() => setFetching(false));
   }, [user, navigate]);
 
-  const generateQR = async (crypto: string) => {
+  const selectedNetwork = networks.find(n => n.symbol === selectedCrypto);
+  const walletAddress = selectedNetwork?.depositAddress;
+
+  const generateQR = async (addr: string) => {
     try {
-      const addr = CRYPTO_ADDRS[crypto];
       if (!addr) { setQr(''); return; }
-      const url = await QRCode.toDataURL(addr);
-      setQr(url);
+      setQr(await QRCode.toDataURL(addr));
     } catch { setQr(''); }
   };
 
-  useEffect(() => { generateQR(selectedCrypto); }, [selectedCrypto]);
+  useEffect(() => { generateQR(walletAddress); }, [walletAddress]);
 
   const handlePaid = async () => {
     if (!amount || parseFloat(amount) <= 0) return toast.error('Please enter a valid amount');
-    if (parseFloat(amount) < 0.001) return toast.error('Minimum deposit is 0.001');
     setLoading(true);
     try {
       const res = await fetch('/api/deposit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: parseFloat(amount), cryptoType: selectedCrypto })
+        body: JSON.stringify({
+          amount: parseFloat(amount),
+          cryptoType: selectedCrypto,
+          networkId: selectedNetwork?.id
+        })
       });
       if (res.ok) {
-        toast.success(`Deposit of ${amount} ${selectedCrypto} submitted! Awaiting confirmation.`);
+        toast.success(`Deposit submitted! Waiting for blockchain confirmation.`);
         setAmount('');
       } else {
         const data = await res.json().catch(() => ({}));
@@ -56,6 +65,14 @@ export default function DepositPage() {
     } catch { toast.error('Network error submitting deposit'); }
     finally { setLoading(false); }
   };
+
+  if (fetching) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brand-teal" size={32} /></div>;
+
+  if (networks.length === 0) return (
+    <div className="max-w-4xl mx-auto text-center py-20">
+      <p className="text-gray-500">No deposit networks available. Contact support.</p>
+    </div>
+  );
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -69,9 +86,11 @@ export default function DepositPage() {
           <div>
             <label className="block text-sm font-black text-gray-400 mb-2">Select Cryptocurrency</label>
             <div className="grid grid-cols-3 gap-3">
-              {['BTC', 'ETH', 'USDT'].map((c) => (
-                <button key={c} onClick={() => setSelectedCrypto(c)}
-                  className={`py-3 rounded-xl border font-black transition-all ${selectedCrypto === c ? 'border-brand-teal bg-brand-teal/10 text-brand-teal' : 'border-white/10 hover:bg-white/5'}`}>{c}</button>
+              {networks.map((n) => (
+                <button key={n.id} onClick={() => setSelectedCrypto(n.symbol)}
+                  className={`py-3 rounded-xl border font-black transition-all ${selectedCrypto === n.symbol ? 'border-brand-teal bg-brand-teal/10 text-brand-teal' : 'border-white/10 hover:bg-white/5'}`}>
+                  {n.symbol}
+                </button>
               ))}
             </div>
           </div>
@@ -80,19 +99,26 @@ export default function DepositPage() {
             <label className="block text-sm font-black text-gray-400 mb-2">Amount ({selectedCrypto})</label>
             <input type="number" step="any" min="0" value={amount} onChange={(e) => setAmount(e.target.value)}
               className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:ring-2 focus:ring-brand-teal outline-none transition-all"
-              placeholder={`Min 0.001 ${selectedCrypto}`} />
+              placeholder={`Min ${selectedNetwork?.minDeposit || 0} ${selectedCrypto}`} />
+            {selectedNetwork && (
+              <div className="text-[10px] text-gray-500 mt-1 px-1">
+                Min: {selectedNetwork.minDeposit} {selectedCrypto}
+              </div>
+            )}
           </div>
 
-          <div className="p-6 bg-white/5 rounded-2xl border border-white/10">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm text-gray-400">Wallet Address</span>
-              <button onClick={() => { navigator.clipboard.writeText(CRYPTO_ADDRS[selectedCrypto]); toast.success('Address copied'); }}
-                className="p-2 hover:bg-white/10 rounded-lg text-brand-teal transition-all"><Copy size={16} /></button>
+          {walletAddress && (
+            <div className="p-6 bg-white/5 rounded-2xl border border-white/10">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-sm text-gray-400">Wallet Address</span>
+                <button onClick={() => { navigator.clipboard.writeText(walletAddress); toast.success('Address copied'); }}
+                  className="p-2 hover:bg-white/10 rounded-lg text-brand-teal transition-all"><Copy size={16} /></button>
+              </div>
+              <div className="text-sm font-mono break-all text-white bg-black/40 p-4 rounded-xl border border-white/5">
+                {walletAddress}
+              </div>
             </div>
-            <div className="text-sm font-mono break-all text-white bg-black/40 p-4 rounded-xl border border-white/5">
-              {CRYPTO_ADDRS[selectedCrypto]}
-            </div>
-          </div>
+          )}
 
           <button onClick={handlePaid} disabled={loading}
             className="w-full py-4 gradient-teal text-slate-900 font-bold rounded-xl shadow-lg shadow-brand-teal/20 transition-all disabled:opacity-50">
@@ -106,6 +132,10 @@ export default function DepositPage() {
           </div>
           <h3 className="text-xl font-black mb-2">Scan & Pay</h3>
           <p className="text-sm text-gray-500 px-10">Scan this QR code with your mobile wallet to send the payment instantly.</p>
+
+          {selectedNetwork && (
+            <div className="mt-2 text-xs text-gray-500">{selectedNetwork.name} Network</div>
+          )}
 
           <div className="mt-10 p-4 bg-brand-gold/10 border border-brand-gold/20 rounded-xl flex items-start gap-3 text-left">
             <div className="p-2 bg-brand-gold/20 rounded-lg text-brand-gold mt-1"><QrIcon size={16} /></div>

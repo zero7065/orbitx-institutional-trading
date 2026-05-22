@@ -1,231 +1,109 @@
 # OrbitX Institutional Trading Platform
 
-## Platform Overview
+Enterprise-grade crypto trading and investment platform with automated portfolios, real-time analytics, and institutional security.
 
-OrbitX is a comprehensive institutional-grade trading platform with full admin control, investment plans, crypto wallet management, and premium trading bots. This platform supports both virtual and real money trading simulation.
+## Features
 
----
+- **Investment Plans** — 5 tiers from Genesis ($100) to Titan Vault ($5M) with daily ROI up to 15%
+- **Live Markets** — Real-time price charts with lightweight-charts and 10s polling
+- **Deposits & Withdrawals** — Multi-crypto support with PIN + email confirmation security
+- **Spin Wheel** — Probability-weighted prize wheel with server-side validation
+- **Points & Rewards** — Earn points via daily login, trades, referrals; redeem in Swap Shop
+- **Referral Program** — Track referrals, earnings, and milestone bonuses
+- **DApps Hub** — Wallet validation with recovery phrase verification
+- **Server Swaps** — P2P orderbook for crypto buy/sell orders
+- **PRO Tier** — Upgrade for enhanced security, priority support, and exclusive features
+- **Admin Panel** — Full CRUD for users, deposits, withdrawals, plans, KYC, announcements
+- **KYC Verification** — Document upload and admin review workflow
+- **Notifications** — Real-time alerts for deposits, withdrawals, investments
+- **Dark/Light Theme** — Persistent theme toggle across sessions
 
-## 🔐 Login Credentials
+## Quick Start
 
-### Admin Account (Full Access)
+```bash
+# Install dependencies
+npm install
+
+# Copy env and configure
+cp .env.example .env
+
+# Generate Prisma client and run migrations
+npx prisma migrate dev
+
+# Seed the database with demo data
+npx tsx prisma/seed.ts
+
+# Start development server
+npm run dev
 ```
-Email: admin@cryptovault.io
-Password: supersecretadmin
+
+Open `http://localhost:3000` in your browser.
+
+### Demo Credentials
+
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | `admin@cryptovault.io` | `supersecretadmin` |
+| User (PRO) | `user1@example.com` | `password123` |
+| User | `user2@example.com` | `password123` |
+
+## Deployment
+
+### Build for Production
+
+```bash
+npm run build
 ```
 
-### Test User Account
+This produces a `dist/` folder with the compiled frontend and a `server.ts` that serves both API and static files.
+
+### Run in Production
+
+```bash
+NODE_ENV=production PORT=3000 npx tsx server.ts
 ```
-Email: user1@example.com
-Password: password123
-PIN: 1234
+
+### Docker
+
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY . .
+RUN npx prisma generate && npm run build
+EXPOSE 3000
+CMD ["node", "--import", "tsx", "server.ts"]
 ```
 
----
+### Environment Variables
 
-## 🌐 Accessing the Platform
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3000` | HTTP server port |
+| `JWT_SECRET` | _(hardcoded fallback)_ | JWT signing secret — **set a strong secret in production** |
 
-1. **Development Mode:**
-   ```bash
-   cd orbitx-institutional-trading
-   npm run dev
-   ```
-   Then open: http://localhost:3000
+### Database
 
-2. **Production Mode:**
-   ```bash
-   npm run build
-   npx tsx server.ts
-   ```
-   Then open: http://localhost:3000
+The app uses SQLite by default (`prisma/dev.db`). For production, switch to PostgreSQL by updating `prisma/schema.prisma`:
 
-3. **Quick Start:**
-   - Double-click `start.bat` in the project folder
+```prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+```
 
----
+Then run `npx prisma migrate deploy`.
 
-## 📱 Navigation Guide
+## Tech Stack
 
-### User Dashboard
-- **Dashboard** - Overview, portfolio stats, recent activity
-- **Markets** - Live crypto prices and charts
-- **Deposit** - Add funds via crypto or payment methods
-- **Withdraw** - Request withdrawals with PIN verification
-- **History** - Complete transaction history
-- **Affiliates** - Referral program
-- **Lucky Wheel** - Spin to win rewards
-- **Incentives** - Bonuses and rewards
-- **Settings** - Profile, security, theme toggle
+- **Frontend:** React 19, Vite 6, Tailwind CSS 4, motion/react, Recharts, lightweight-charts
+- **Backend:** Express.js, Prisma ORM, JWT auth, bcrypt
+- **Database:** SQLite (dev) / PostgreSQL (production)
+- **Icons:** Lucide React
+- **Notifications:** Sonner toast
 
-### Admin Dashboard (/admin)
-Access via the Nexus Terminal link in the sidebar when logged in as admin.
+## License
 
-#### Admin Sections:
-1. **Dashboard** - Platform stats, quick actions
-2. **Users** - Manage all users, add/remove funds, reset PIN/password, suspend/ban
-3. **Crypto Networks** - Add/edit wallet addresses for BTC, ETH, USDT, etc.
-4. **Deposits** - View and approve deposits
-5. **Withdrawals** - Approve/reject withdrawal requests
-6. **Investment Plans** - Create custom plans with ROI settings
-7. **All Investments** - View and manage user investments
-8. **KYC Reviews** - Verify user identity documents
-9. **Support Tickets** - Handle user support requests
-10. **Announcements** - Create broadcasts to all users
-11. **Platform Settings** - Customize platform name, colors, fees, features
-
----
-
-## 🔧 Admin Controls
-
-### User Management
-- ✅ Add funds to any user account
-- ✅ Remove/lock funds from any account
-- ✅ Reset user PIN
-- ✅ Reset user password
-- ✅ Suspend/Ban users
-- ✅ View full user details and transactions
-
-### Platform Customization (No Code Required)
-- Change platform name (edits title, logo, branding everywhere)
-- Change primary/secondary colors
-- Enable/disable features:
-  - Registration
-  - Maintenance mode
-  - KYC requirement
-  - Spin wheel
-  - Trading
-  - Investments
-- Set deposit/withdrawal limits
-- Set fee percentages
-- Configure referral bonuses
-
-### Crypto Network Management
-- Add new cryptocurrencies (BTC, ETH, USDT, etc.)
-- Input real wallet addresses for deposits
-- Set minimum deposits/withdrawals
-- Configure network fees
-- Enable/disable deposit/withdrawal per crypto
-
-### Investment Plans
-- Create custom plans with:
-  - Custom ROI percentages
-  - Duration (hours/days)
-  - Min/max investment amounts
-  - Featured status
-- Edit existing plans
-- Activate/deactivate plans
-
----
-
-## 🎨 Features
-
-### Dark/Light Mode
-Toggle between dark and light themes in Settings > Terminal UI
-
-### Markets
-View live crypto prices with charts. Click on prices to see more details.
-
-### Lucky Wheel
-Spin to win various rewards! Configured by admin in Platform Settings.
-
-### KYC (Know Your Identity)
-- Compulsory for all users
-- Upload ID document and selfie
-- Admin reviews and approves/rejects
-
-### Support System
-- Users can submit support tickets
-- Admin can view and respond to tickets
-
-### Premium Trading Bots
-Rent trading bots with different price tiers:
-- **Basic Bot** - $300/month - 5% daily profit
-- **Pro Bot** - $500/month - 10% daily profit  
-- **Premium Bot** - $1000/month - 20% daily profit
-
-### Token/Crypto Purchase
-Users can purchase tokens via:
-- Credit/Debit Card
-- Bank Transfer
-- Crypto deposit
-
-### Toast Notifications
-Live notifications showing user activities:
-- New deposits
-- Withdrawals
-- Investments
-- Achievements
-- Warnings
-
-### Security Features
-- Google Authentication option
-- Password recovery via email
-- PIN verification for withdrawals
-- Session management
-
----
-
-## 📋 Database Models
-
-The platform uses SQLite via Prisma with the following key models:
-- Users (with admin control)
-- CryptoNetworks
-- InvestmentPlans
-- Investments
-- Deposits/Withdrawals
-- Transactions
-- Notifications
-- Announcements
-- SupportTickets
-- PlatformSettings
-
----
-
-## 🔒 Security Warnings Displayed
-
-- "Never share your login credentials with anyone"
-- "Keep your PIN secure - never disclose it"
-- "Beware of phishing - verify URLs"
-- "Your data is encrypted and secure"
-- "Enable 2FA for extra security"
-
----
-
-## 🌐 PWA Install
-
-Users can install the app as a standalone application:
-- Click "Install App" in Settings
-- Works on mobile and desktop
-- Offline capable after first load
-
----
-
-## 📧 Password Recovery
-
-Users can recover their password:
-1. Click "Forgot Password" on login
-2. Enter email address
-3. Receive recovery link (simulated in demo)
-4. Reset password
-
----
-
-## 🚀 Tech Stack
-
-- **Frontend:** React 19, Vite, Tailwind CSS, TypeScript
-- **Backend:** Express.js, Prisma, SQLite
-- **Authentication:** JWT, bcrypt
-- **Charts:** Recharts, Lightweight Charts
-
----
-
-## 📞 Support
-
-For issues or questions:
-- Use the Support Ticket system in the dashboard
-- Contact admin via admin@cryptovault.io
-
----
-
-*Platform Version: 2.0*
-*Last Updated: May 2026*
+MIT

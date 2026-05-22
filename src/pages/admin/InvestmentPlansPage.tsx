@@ -30,10 +30,12 @@ export default function InvestmentPlansPage() {
 
   const fetchPlans = async () => {
     setLoading(true);
-    const res = await fetch('/api/admin/investment-plans');
-    const data = await res.json();
-    setPlans(data);
-    setLoading(false);
+    try {
+      const res = await fetch('/api/admin/investment-plans');
+      if (res.ok) setPlans(await res.json());
+      else toast.error('Failed to load plans');
+    } catch (e) { toast.error('Network error loading plans'); }
+    finally { setLoading(false); }
   };
 
   useEffect(() => { fetchPlans(); }, []);

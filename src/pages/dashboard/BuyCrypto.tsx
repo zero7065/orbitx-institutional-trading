@@ -6,16 +6,9 @@ interface PaymentMethod {
   id: string; name: string; type: string; provider?: string; details?: string; minAmount: number; maxAmount: number; feePercent: number;
 }
 
-const CRYPTO_OPTIONS = [
-  { symbol: 'BTC', name: 'Bitcoin', color: '#F7931A', icon: '₿' },
-  { symbol: 'ETH', name: 'Ethereum', color: '#627EEA', icon: 'Ξ' },
-  { symbol: 'USDT', name: 'Tether', color: '#26A17B', icon: '$' },
-  { symbol: 'BNB', name: 'BNB', color: '#F3BA2F', icon: 'B' },
-  { symbol: 'SOL', name: 'Solana', color: '#00FFA3', icon: 'S' },
-];
-
 export default function BuyCryptoPage() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [networks, setNetworks] = useState<any[]>([]);
   const [selectedCrypto, setSelectedCrypto] = useState('BTC');
   const [selectedPayment, setSelectedPayment] = useState('');
   const [amount, setAmount] = useState('');
@@ -25,21 +18,30 @@ export default function BuyCryptoPage() {
   const [rates, setRates] = useState<any>({});
 
   useEffect(() => {
-    fetch('/api/payment-methods').then(r => r.json()).then(data => {
-      setPaymentMethods(data);
-      if (data.length > 0) setSelectedPayment(data[0].id);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-    fetch('/api/live-rates').then(r => r.json()).then(setRates).catch(() => {});
+    Promise.all([
+      fetch('/api/payment-methods').then(r => r.json()).then(data => {
+        if (Array.isArray(data)) {
+          setPaymentMethods(data);
+          if (data.length > 0) setSelectedPayment(data[0].id);
+        }
+      }).catch(() => {}),
+      fetch('/api/networks').then(r => r.json()).then(data => {
+        if (Array.isArray(data)) {
+          setNetworks(data.filter((n: any) => n.enabled));
+          if (data.length > 0 && !selectedCrypto) setSelectedCrypto(data[0].symbol);
+        }
+      }).catch(() => {}),
+      fetch('/api/live-rates').then(r => r.json()).then(setRates).catch(() => {})
+    ]).finally(() => setLoading(false));
   }, []);
 
   const selectedPaymentMethod = paymentMethods.find(p => p.id === selectedPayment);
   const fee = selectedPaymentMethod && amount ? parseFloat(amount) * (selectedPaymentMethod.feePercent / 100) : 0;
   const total = (parseFloat(amount) || 0) + fee;
-  const cryptoPrice = rates[selectedCrypto]?.price || 65000;
+  const cryptoPrice = rates[selectedCrypto]?.price || 50000;
   const receivedCrypto = amount && cryptoPrice > 0 ? (parseFloat(amount) / cryptoPrice) : 0;
 
-  const getCryptoColor = (symbol: string) => CRYPTO_OPTIONS.find(c => c.symbol === symbol)?.color || '#888';
+  const getNetworkColor = (symbol: string) => networks.find(n => n.symbol === symbol)?.color || '#888';
 
   const getPaymentIcon = (type: string) => {
     switch (type) { case 'CARD': return <CreditCard size={20} />; case 'BANK': return <Building size={20} />; case 'WALLET': return <Wallet size={20} />; default: return <CreditCard size={20} />; }
@@ -104,10 +106,10 @@ export default function BuyCryptoPage() {
           <div>
             <label className="block text-sm font-bold text-gray-400 mb-3">Select Cryptocurrency</label>
             <div className="grid grid-cols-3 gap-3">
-              {CRYPTO_OPTIONS.map((crypto) => (
+              {networks.map((crypto) => (
                 <button key={crypto.symbol} onClick={() => setSelectedCrypto(crypto.symbol)}
                   className={`p-4 rounded-xl border text-center transition-all ${selectedCrypto === crypto.symbol ? 'border-brand-teal bg-brand-teal/10' : 'border-white/10 hover:bg-white/5'}`}>
-                  <div className="text-2xl mb-1" style={{ color: getCryptoColor(crypto.symbol) }}>{crypto.icon}</div>
+                  <div className="text-2xl mb-1 font-black" style={{ color: getNetworkColor(crypto.symbol) }}>{crypto.symbol[0]}</div>
                   <div className="font-black text-sm">{crypto.symbol}</div>
                 </button>
               ))}
@@ -170,7 +172,7 @@ export default function BuyCryptoPage() {
             <div className="flex justify-between items-center p-3 bg-white/5 rounded-xl">
               <span className="text-gray-400">You Receive</span>
               <div className="text-right">
-                <span className="font-black text-xl" style={{ color: getCryptoColor(selectedCrypto) }}>
+                <span className="font-black text-xl" style={{ color: getNetworkColor(selectedCrypto) }}>
                   {receivedCrypto > 0 ? receivedCrypto.toFixed(6) : '0.000000'}
                 </span>
                 <span className="text-gray-500 text-sm ml-2">{selectedCrypto}</span>

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../App';
-import { Wallet, ArrowDownRight, TrendingUp, Users, ArrowUpRight, Award, Bell } from 'lucide-react';
+import { Wallet, ArrowDownRight, TrendingUp, Users, ArrowUpRight, Award, Bell, ShieldCheck, Crown, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const formatUSD = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
@@ -16,6 +17,24 @@ export default function DashboardOverview() {
     fetch('/api/investment-plans').then(r => r.json()).then(setPlans).catch(() => {});
     fetch('/api/notifications').then(r => r.json()).then(data => setNotifs(data.filter((n: any) => !n.read).slice(0, 3))).catch(() => {});
   }, []);
+
+  const [upgrading, setUpgrading] = useState(false);
+
+  const handleUpgrade = async () => {
+    setUpgrading(true);
+    try {
+      const res = await fetch('/api/auth/upgrade-pro', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      if (res.ok) { toast.success('Upgraded to PRO!'); fetchStats(); window.location.reload(); }
+      else { const d = await res.json(); toast.error(d.error || 'Upgrade failed'); }
+    } catch { toast.error('Network error'); }
+    setUpgrading(false);
+  };
+
+  const UpgradeProButton = () => (
+    <button onClick={handleUpgrade} disabled={upgrading} className="px-6 py-3 bg-gradient-to-r from-brand-gold to-yellow-600 text-slate-900 font-black text-xs uppercase tracking-widest rounded-xl hover:scale-[1.02] transition-all disabled:opacity-50 flex items-center gap-2">
+      {upgrading ? <><Loader2 className="animate-spin" size={16} /> Processing...</> : <><Crown size={16} /> Upgrade to PRO - $500</>}
+    </button>
+  );
 
   if (!stats) return <div className="animate-pulse text-center py-20 text-gray-500 font-black uppercase tracking-widest text-sm">Loading dashboard...</div>;
 
@@ -58,6 +77,25 @@ export default function DashboardOverview() {
             </p>
           </div>
         ))}
+      </div>
+
+      {/* PRO Status */}
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className={`p-3 rounded-xl ${user?.tier === 'PRO' ? 'bg-brand-gold/20' : 'bg-white/5'}`}>
+            {user?.tier === 'PRO' ? <Crown size={24} className="text-brand-gold" /> : <ShieldCheck size={24} className="text-gray-500" />}
+          </div>
+          <div>
+            <div className="font-black flex items-center gap-2">
+              {user?.tier === 'PRO' ? 'PRO Member' : 'Standard Account'}
+              {user?.tier === 'PRO' && <span className="text-[8px] px-2 py-0.5 bg-brand-gold/20 text-brand-gold rounded-full font-black uppercase tracking-widest">Active</span>}
+            </div>
+            <p className="text-sm text-gray-500">{user?.tier === 'PRO' ? 'Enjoy enhanced security, priority support, and exclusive benefits' : 'Upgrade to PRO for enhanced security and premium features'}</p>
+          </div>
+        </div>
+        {user?.tier !== 'PRO' && (
+          <UpgradeProButton />
+        )}
       </div>
 
       {/* Charts & Plans */}

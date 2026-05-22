@@ -34,10 +34,19 @@ export default function PlatformSettingsPage() {
 
   const fetchSettings = async () => {
     setLoading(true);
-    const res = await fetch('/api/admin/platform-settings');
-    const data = await res.json();
-    setSettings(data);
-    setLoading(false);
+    try {
+      const res = await fetch('/api/admin/platform-settings');
+      if (res.ok) {
+        const data = await res.json();
+        setSettings(data);
+      } else {
+        toast.error('Failed to load settings');
+      }
+    } catch (e) {
+      toast.error('Network error loading settings');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchSettings(); }, []);

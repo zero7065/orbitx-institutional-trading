@@ -48,7 +48,7 @@ export default function EnhancedPaymentModal({ open, onClose, type, onSuccess }:
   }, [step]);
 
   const currentRate = liveRates[selectedCrypto]?.price || FALLBACK_RATES[selectedCrypto] || 65000;
-  const gasFee = gasFees[selectedCrypto]?.fast || 0;
+  const gasFee = gasFees[selectedCrypto]?.fast ?? 0;
   const totalAmount = (parseFloat(amount || '0') || 0) + (typeof gasFee === 'number' ? gasFee : 0);
   const cryptoAmount = amount && currentRate > 0 ? parseFloat(amount) / currentRate : 0;
 

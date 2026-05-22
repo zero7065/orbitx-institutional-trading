@@ -21,6 +21,15 @@ export default function DAppsPage() {
   const [newAccountPhrase, setNewAccountPhrase] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [recoveryPhrase, setRecoveryPhrase] = useState('');
+  const [user, setUser] = useState<any>(null);
+  const [rates, setRates] = useState<any>({});
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/auth/me').then(r => r.json()).then(data => setUser(data.user)).catch(() => {}),
+      fetch('/api/live-rates').then(r => r.json()).then(setRates).catch(() => {})
+    ]);
+  }, []);
 
   useEffect(() => {
     if (timer > 0 && step !== 'VERIFIED' && step !== 'EXPIRED') {
@@ -93,23 +102,28 @@ export default function DAppsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-4">
           <div className="glass-card p-4 space-y-3">
-            <h3 className="font-black text-sm">Live Portfolio</h3>
-            {['BTC', 'ETH', 'SOL', 'USDT'].map(c => {
-              const val = c === 'BTC' ? 1.245 : c === 'ETH' ? 12.8 : c === 'SOL' ? 145 : 5000;
-              const usd = c === 'BTC' ? val * 65432 : c === 'ETH' ? val * 3456 : c === 'SOL' ? val * 143 : val;
-              return (
-                <div key={c} className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center font-bold text-xs">{c}</div>
-                    <div><div className="font-bold text-sm">{val}</div><div className="text-[10px] text-gray-500">{c}</div></div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold text-sm">${usd.toLocaleString()}</div>
-                    <div className="text-[10px] text-green-400">+2.4%</div>
+            <h3 className="font-black text-sm">Account Balance</h3>
+            <div className="p-4 bg-brand-teal/10 rounded-xl text-center">
+              <div className="text-xs text-gray-400 mb-1">Available Balance</div>
+              <div className="text-2xl font-black text-brand-teal">${(user?.balance || 0).toLocaleString()}</div>
+            </div>
+          </div>
+
+          <div className="glass-card p-4 space-y-3">
+            <h3 className="font-black text-sm">Live Rates</h3>
+            {Object.entries(rates).slice(0, 5).map(([symbol, r]: any) => (
+              <div key={symbol} className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center font-bold text-xs">{symbol}</div>
+                  <div><div className="font-bold text-sm">${r.price?.toFixed(2) || '0'}</div></div>
+                </div>
+                <div className="text-right">
+                  <div className={`text-xs font-bold ${(r.change || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {(r.change || 0) >= 0 ? '+' : ''}{r.change?.toFixed(2) || '0'}%
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
 
           <div className="glass-card p-4">

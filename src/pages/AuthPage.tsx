@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../App';
-import { TrendingUp, Mail, Lock, UserPlus } from 'lucide-react';
+import { TrendingUp, Mail, Lock, UserPlus, Loader2, Eye, EyeOff } from 'lucide-react';
 
 interface AuthPageProps { mode: 'login' | 'register'; }
 
@@ -9,6 +9,8 @@ export default function AuthPage({ mode }: AuthPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [refCode, setRefCode] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const { login, register } = useAuth();
 
   useEffect(() => {
@@ -19,8 +21,12 @@ export default function AuthPage({ mode }: AuthPageProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email || !password) return;
+    if (mode === 'register' && password.length < 8) return;
+    setLoading(true);
     if (mode === 'login') await login(email, password);
     else await register(email, password, refCode);
+    setLoading(false);
   };
 
   return (
@@ -53,10 +59,14 @@ export default function AuthPage({ mode }: AuthPageProps) {
             <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 px-1">Password</label>
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" size={16} />
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-11 pr-4 focus:ring-1 focus:ring-brand-teal/50 outline-none transition-all text-sm font-medium"
-                placeholder="••••••••" required />
+              <input type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-11 pr-11 focus:ring-1 focus:ring-brand-teal/50 outline-none transition-all text-sm font-medium"
+                placeholder={mode === 'register' ? 'Min 8 characters' : '••••••••'} required minLength={8} />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-400">
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
             </div>
+            {mode === 'register' && <p className="text-[10px] text-gray-500 mt-1 px-1">At least 8 characters required</p>}
           </div>
           {mode === 'register' && (
             <div>
@@ -69,8 +79,8 @@ export default function AuthPage({ mode }: AuthPageProps) {
               </div>
             </div>
           )}
-          <button className="w-full py-3.5 bg-gradient-to-r from-brand-teal to-blue-600 text-[#0B0E11] font-black text-xs uppercase tracking-widest rounded-xl shadow-xl shadow-brand-teal/10 hover:scale-[1.02] active:scale-95 transition-all mt-4">
-            {mode === 'login' ? 'Sign In' : 'Create Account'}
+          <button type="submit" disabled={loading} className="w-full py-3.5 bg-gradient-to-r from-brand-teal to-blue-600 text-[#0B0E11] font-black text-xs uppercase tracking-widest rounded-xl shadow-xl shadow-brand-teal/10 hover:scale-[1.02] active:scale-95 transition-all mt-4 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            {loading ? <><Loader2 className="animate-spin" size={16} /> Processing...</> : (mode === 'login' ? 'Sign In' : 'Create Account')}
           </button>
         </form>
 

@@ -31,9 +31,12 @@ export default function UsersManagement() {
       const params = new URLSearchParams();
       if (search) params.set('search', search);
       const res = await fetch(`/api/admin/users?${params}`);
-      const data = await res.json();
-      setUsers(data);
-    } catch (e) { console.error(e); }
+      if (res.ok) {
+        setUsers(await res.json());
+      } else {
+        toast.error('Failed to load users');
+      }
+    } catch (e) { toast.error('Network error loading users'); }
     finally { setLoading(false); }
   };
 
@@ -64,32 +67,41 @@ export default function UsersManagement() {
 
   const updateStatus = async (user: User, status: string) => {
     const reason = status === 'SUSPENDED' || status === 'BANNED' ? prompt('Enter reason:') : '';
-    const res = await fetch(`/api/admin/users/${user.id}/suspend`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, reason })
-    });
-    if (res.ok) { toast.success(`User ${status.toLowerCase()}`); fetchUsers(); }
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/suspend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, reason })
+      });
+      if (res.ok) { toast.success(`User ${status.toLowerCase()}`); fetchUsers(); }
+      else { const d = await res.json().catch(() => ({})); toast.error(d.error || `Failed to ${status.toLowerCase()} user`); }
+    } catch (e) { toast.error('Network error updating status'); }
   };
 
   const resetPin = async (user: User) => {
     const newPin = prompt('Enter new PIN (4 digits, default 1234):') || '1234';
-    const res = await fetch(`/api/admin/users/${user.id}/reset-pin`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ newPin })
-    });
-    if (res.ok) toast.success('PIN reset successfully');
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/reset-pin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPin })
+      });
+      if (res.ok) toast.success('PIN reset successfully');
+      else { const d = await res.json().catch(() => ({})); toast.error(d.error || 'Failed to reset PIN'); }
+    } catch (e) { toast.error('Network error resetting PIN'); }
   };
 
   const resetPassword = async (user: User) => {
     const newPass = prompt('Enter new password (default password123):') || 'password123';
-    const res = await fetch(`/api/admin/users/${user.id}/reset-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ newPassword: newPass })
-    });
-    if (res.ok) toast.success('Password reset successfully');
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPassword: newPass })
+      });
+      if (res.ok) toast.success('Password reset successfully');
+      else { const d = await res.json().catch(() => ({})); toast.error(d.error || 'Failed to reset password'); }
+    } catch (e) { toast.error('Network error resetting password'); }
   };
 
   const viewUserDetail = async (user: User) => {

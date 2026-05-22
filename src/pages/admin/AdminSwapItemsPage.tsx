@@ -12,9 +12,18 @@ export default function AdminSwapItemsPage() {
   useEffect(() => { fetchItems(); }, []);
 
   const fetchItems = async () => {
-    const res = await fetch('/api/admin/swap-items');
-    setItems(await res.json());
-    setLoading(false);
+    try {
+      const res = await fetch('/api/admin/swap-items');
+      if (res.ok) {
+        setItems(await res.json());
+      } else {
+        toast.error('Failed to load items');
+      }
+    } catch (e) {
+      toast.error('Network error loading items');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -30,9 +39,17 @@ export default function AdminSwapItemsPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this item?')) return;
-    await fetch(`/api/admin/swap-items/${id}`, { method: 'DELETE' });
-    toast.success('Item removed');
-    fetchItems();
+    try {
+      const res = await fetch(`/api/admin/swap-items/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success('Item removed');
+        fetchItems();
+      } else {
+        toast.error('Failed to delete item');
+      }
+    } catch (e) {
+      toast.error('Network error deleting item');
+    }
   };
 
   if (loading) return <div className="animate-pulse text-center py-20 text-gray-500">Loading swap items...</div>;

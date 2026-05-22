@@ -1,24 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../components/ThemeContext';
 import { toast } from 'sonner';
 import { 
   Moon, Sun, Shield, Key, Bell, CreditCard, Wallet, Bot, 
   Download, Eye, EyeOff, Lock, AlertTriangle, Mail, User, 
-  ChevronRight, Check, X, Plus, Trash2
+  ChevronRight, Check, X, Plus, Trash2, Loader2
 } from 'lucide-react';
-
-interface PaymentMethod {
-  id: string;
-  type: 'card' | 'bank' | 'crypto';
-  name: string;
-  last4?: string;
-  isDefault: boolean;
-  cardNumber?: string;
-  expiry?: string;
-  cvv?: string;
-  bankName?: string;
-  routingNumber?: string;
-}
 
 interface TradingBot {
   id: string;
@@ -38,37 +25,122 @@ const TRADING_BOTS: TradingBot[] = [
 
 export default function SettingsPage() {
   const { isDark, toggleTheme } = useTheme();
-  const [showPin, setShowPin] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
-    { id: '1', type: 'card', name: 'Visa', last4: '4242', isDefault: true, cardNumber: '4242424242424242', expiry: '12/27', cvv: '123' },
-  ]);
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  const [loadingCards, setLoadingCards] = useState(true);
   const [activeBots, setActiveBots] = useState<string[]>([]);
-  const [showAddPayment, setShowAddPayment] = useState(false);
+
+  // Password modal
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  // PIN modal
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [currentPin, setCurrentPin] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [changingPin, setChangingPin] = useState(false);
+
+  // Add card modal
+  const [showAddCard, setShowAddCard] = useState(false);
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardHolder, setCardHolder] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [cvv, setCvv] = useState('');
+  const [addingCard, setAddingCard] = useState(false);
 
   // Password Recovery
   const [showRecovery, setShowRecovery] = useState(false);
   const [recoveryEmail, setRecoveryEmail] = useState('');
+
+  useEffect(() => {
+    fetch('/api/user/cards')
+      .then(r => r.json())
+      .then(data => setPaymentMethods(data))
+      .catch(() => toast.error('Failed to load payment methods'))
+      .finally(() => setLoadingCards(false));
+  }, []);
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword) return toast.error('Fill all fields');
+    if (newPassword !== confirmPassword) return toast.error('Passwords do not match');
+    if (newPassword.length < 6) return toast.error('Password must be at least 6 characters');
+    setChangingPassword(true);
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+      if (res.ok) {
+        toast.success('Password updated successfully');
+        setShowPasswordModal(false);
+        setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Failed to update password');
+      }
+    } catch { toast.error('Network error updating password'); }
+    setChangingPassword(false);
+  };
+
+  const handleChangePin = async () => {
+    if (!currentPin || !newPin) return toast.error('Fill all fields');
+    if (newPin !== confirmPin) return toast.error('PINs do not match');
+    if (!/^\d{4}$/.test(newPin)) return toast.error('PIN must be 4 digits');
+    setChangingPin(true);
+    try {
+      const res = await fetch('/api/auth/change-pin', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPin, newPin })
+      });
+      if (res.ok) {
+        toast.success('PIN updated successfully');
+        setShowPinModal(false);
+        setCurrentPin(''); setNewPin(''); setConfirmPin('');
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Failed to update PIN');
+      }
+    } catch { toast.error('Network error updating PIN'); }
+    setChangingPin(false);
+  };
+
+  const handleAddCard = async () => {
+    if (!cardNumber || !cardHolder || !expiryDate || !cvv) return toast.error('Fill all card fields');
+    setAddingCard(true);
+    try {
+      const res = await fetch('/api/user/cards', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cardNumber, cardHolder, expiryDate, cvv })
+      });
+      if (res.ok) {
+        const card = await res.json();
+        setPaymentMethods(prev => [...prev, card]);
+        setShowAddCard(false);
+        setCardNumber(''); setCardHolder(''); setExpiryDate(''); setCvv('');
+        toast.success('Payment method added');
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Failed to add card');
+      }
+    } catch { toast.error('Network error adding card'); }
+    setAddingCard(false);
+  };
+
   const handleRecovery = () => {
-    toast.success(`Password recovery link sent to ${recoveryEmail}. Check your email (simulated).`);
+    toast.success(`Password recovery link sent to ${recoveryEmail}. Check your email.`);
     setShowRecovery(false);
   };
 
-  // Add Payment Method
-  const handleAddPayment = (method: PaymentMethod) => {
-    setPaymentMethods([...paymentMethods, { ...method, id: Date.now().toString() }]);
-    setShowAddPayment(false);
-    toast.success('Payment method added successfully');
-  };
-
-  // Rent Bot
   const handleRentBot = (bot: TradingBot) => {
     if (activeBots.includes(bot.id)) {
       setActiveBots(activeBots.filter(id => id !== bot.id));
       toast.info(`${bot.name} deactivated`);
     } else {
       setActiveBots([...activeBots, bot.id]);
-      toast.success(`🎉 ${bot.name} activated! Estimated profit: $${bot.dailyProfit}/day`);
+      toast.success(`${bot.name} activated! Estimated profit: $${bot.dailyProfit}/day`);
     }
   };
 
@@ -182,50 +254,58 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Payment Methods */}
+        {/* Payment Methods */}
       <div className="glass-card p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-black text-lg flex items-center gap-2">
             <CreditCard className="text-brand-teal" size={20} />
             Payment Methods
           </h3>
-          <button onClick={() => setShowAddPayment(true)} className="flex items-center gap-2 text-brand-teal text-sm">
+          <button onClick={() => setShowAddCard(true)} className="flex items-center gap-2 text-brand-teal text-sm">
             <Plus size={16} /> Add New
           </button>
         </div>
         
         <div className="space-y-3">
-          {paymentMethods.map(method => (
-            <div key={method.id} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-8 bg-gradient-to-r from-blue-600 to-blue-800 rounded flex items-center justify-center text-white text-xs font-bold">
-                  {method.type.toUpperCase()}
+          {loadingCards ? (
+            <div className="flex justify-center py-4"><Loader2 className="animate-spin text-brand-teal" size={24} /></div>
+          ) : paymentMethods.length === 0 ? (
+            <p className="text-sm text-gray-500 text-center py-4">No payment methods added yet.</p>
+          ) : (
+            paymentMethods.map((method: any) => (
+              <div key={method.id} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-8 bg-gradient-to-r from-blue-600 to-blue-800 rounded flex items-center justify-center text-white text-xs font-bold">
+                    {method.brand || 'CARD'}
+                  </div>
+                  <div>
+                    <div className="font-bold">{method.cardHolder || 'Card'}</div>
+                    <div className="text-sm text-gray-500">•••• {method.cardNumber?.slice(-4) || '0000'}</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="font-bold">{method.name}</div>
-                  <div className="text-sm text-gray-500">•••• {method.last4}</div>
-                </div>
+                {method.isDefault && <span className="text-xs px-2 py-1 bg-brand-teal/20 text-brand-teal rounded font-bold">DEFAULT</span>}
               </div>
-              {method.isDefault && <span className="text-xs px-2 py-1 bg-brand-teal/20 text-brand-teal rounded font-bold">DEFAULT</span>}
-            </div>
-          ))}
+            ))
+          )}
         </div>
 
-        {/* Add Payment Modal */}
-        {showAddPayment && (
+        {/* Add Card Modal */}
+        {showAddCard && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur flex items-center justify-center z-50 p-4">
             <div className="bg-[#1a1d23] border border-white/10 rounded-3xl p-8 max-w-md w-full">
               <h3 className="text-xl font-black mb-6">Add Payment Method</h3>
               <div className="space-y-4">
-                <input placeholder="Card Number" className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4" />
+                <input value={cardHolder} onChange={e => setCardHolder(e.target.value)} placeholder="Cardholder Name" className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 outline-none focus:ring-1 focus:ring-brand-teal" />
+                <input value={cardNumber} onChange={e => setCardNumber(e.target.value)} placeholder="Card Number" className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 outline-none focus:ring-1 focus:ring-brand-teal" />
                 <div className="grid grid-cols-2 gap-4">
-                  <input placeholder="MM/YY" className="bg-white/5 border border-white/10 rounded-xl py-3 px-4" />
-                  <input placeholder="CVV" className="bg-white/5 border border-white/10 rounded-xl py-3 px-4" />
+                  <input value={expiryDate} onChange={e => setExpiryDate(e.target.value)} placeholder="MM/YY" className="bg-white/5 border border-white/10 rounded-xl py-3 px-4 outline-none focus:ring-1 focus:ring-brand-teal" />
+                  <input value={cvv} onChange={e => setCvv(e.target.value)} placeholder="CVV" className="bg-white/5 border border-white/10 rounded-xl py-3 px-4 outline-none focus:ring-1 focus:ring-brand-teal" />
                 </div>
-                <input placeholder="Cardholder Name" className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4" />
                 <div className="flex gap-3">
-                  <button onClick={() => setShowAddPayment(false)} className="flex-1 py-3 bg-white/5 rounded-xl font-bold">Cancel</button>
-                  <button onClick={() => handleAddPayment({ id: '', type: 'card', name: 'New Card', last4: '0000', isDefault: false })} className="flex-1 py-3 bg-brand-teal text-slate-900 font-bold rounded-xl">Add Card</button>
+                  <button onClick={() => setShowAddCard(false)} className="flex-1 py-3 bg-white/5 rounded-xl font-bold">Cancel</button>
+                  <button onClick={handleAddCard} disabled={addingCard} className="flex-1 py-3 bg-brand-teal text-slate-900 font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-2">
+                    {addingCard ? <><Loader2 className="animate-spin" size={16} /> Adding...</> : 'Add Card'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -249,7 +329,7 @@ export default function SettingsPage() {
                 <div className="text-sm text-gray-500">Update your account password</div>
               </div>
             </div>
-            <button className="text-brand-teal text-sm hover:underline">Update</button>
+            <button onClick={() => setShowPasswordModal(true)} className="text-brand-teal text-sm hover:underline">Update</button>
           </div>
           
           <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl">
@@ -260,7 +340,7 @@ export default function SettingsPage() {
                 <div className="text-sm text-gray-500">Update your 4-digit security PIN</div>
               </div>
             </div>
-            <button className="text-brand-teal text-sm hover:underline">Update</button>
+            <button onClick={() => setShowPinModal(true)} className="text-brand-teal text-sm hover:underline">Update</button>
           </div>
 
           <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl">
@@ -275,6 +355,46 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Change Password Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1a1d23] border border-white/10 rounded-3xl p-8 max-w-md w-full">
+            <h3 className="text-xl font-black mb-6">Change Password</h3>
+            <div className="space-y-4">
+              <input value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} type="password" placeholder="Current Password" className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 outline-none focus:ring-1 focus:ring-brand-teal" />
+              <input value={newPassword} onChange={e => setNewPassword(e.target.value)} type="password" placeholder="New Password" className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 outline-none focus:ring-1 focus:ring-brand-teal" />
+              <input value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} type="password" placeholder="Confirm New Password" className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 outline-none focus:ring-1 focus:ring-brand-teal" />
+              <div className="flex gap-3">
+                <button onClick={() => setShowPasswordModal(false)} className="flex-1 py-3 bg-white/5 rounded-xl font-bold">Cancel</button>
+                <button onClick={handleChangePassword} disabled={changingPassword} className="flex-1 py-3 bg-brand-teal text-slate-900 font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-2">
+                  {changingPassword ? <><Loader2 className="animate-spin" size={16} /> Updating...</> : 'Update Password'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change PIN Modal */}
+      {showPinModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1a1d23] border border-white/10 rounded-3xl p-8 max-w-md w-full">
+            <h3 className="text-xl font-black mb-6">Change PIN</h3>
+            <div className="space-y-4">
+              <input value={currentPin} onChange={e => setCurrentPin(e.target.value)} type="password" maxLength={4} placeholder="Current PIN" className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 outline-none focus:ring-1 focus:ring-brand-teal" />
+              <input value={newPin} onChange={e => setNewPin(e.target.value)} type="password" maxLength={4} placeholder="New 4-digit PIN" className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 outline-none focus:ring-1 focus:ring-brand-teal" />
+              <input value={confirmPin} onChange={e => setConfirmPin(e.target.value)} type="password" maxLength={4} placeholder="Confirm New PIN" className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 outline-none focus:ring-1 focus:ring-brand-teal" />
+              <div className="flex gap-3">
+                <button onClick={() => setShowPinModal(false)} className="flex-1 py-3 bg-white/5 rounded-xl font-bold">Cancel</button>
+                <button onClick={handleChangePin} disabled={changingPin} className="flex-1 py-3 bg-brand-teal text-slate-900 font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-2">
+                  {changingPin ? <><Loader2 className="animate-spin" size={16} /> Updating...</> : 'Update PIN'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Install App */}
       <div className="glass-card p-6">

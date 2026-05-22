@@ -14,6 +14,14 @@ const __dirname = path.dirname(__filename);
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'cryptovault-super-secret-key-2026';
 
+declare global {
+  namespace Express {
+    interface Request {
+      user?: { id: string; email: string; role: string };
+    }
+  }
+}
+
 async function seedInitialData() {
   const existingSettings = await prisma.platformSettings.findUnique({ where: { id: 'default' } });
   if (!existingSettings) {
@@ -49,10 +57,11 @@ async function seedInitialData() {
   const plans = await prisma.investmentPlan.count();
   if (plans === 0) {
     const investmentPlans = [
-      { name: 'Alpha Reserve', description: 'Conservative strategy for capital preservation with low volatility exposure.', roi: 2.5, roiType: 'DAILY', durationHours: 24, durationDays: 1, minAmount: 100, maxAmount: 1000, color: '#00D1FF', featured: true, priority: 1 },
-      { name: 'Sigma Prime', description: 'Balanced approach targeting steady growth through diversified yield strategies.', roi: 5, roiType: 'DAILY', durationHours: 48, durationDays: 2, minAmount: 1001, maxAmount: 5000, color: '#F0B90B', featured: true, priority: 2 },
-      { name: 'Omega Elite', description: 'Institutional-grade high yield for serious investors seeking maximum returns.', roi: 10, roiType: 'DAILY', durationHours: 72, durationDays: 3, minAmount: 5001, maxAmount: 50000, color: '#10B981', featured: true, priority: 3 },
-      { name: 'Genesis', description: 'Entry-level investment plan for new investors starting their journey.', roi: 1.5, roiType: 'DAILY', durationHours: 12, durationDays: 0.5, minAmount: 50, maxAmount: 500, color: '#8B5CF6', priority: 4 },
+      { name: 'Genesis', description: 'Entry-level investment plan for new investors starting their journey.', roi: 1.5, roiType: 'DAILY', durationHours: 12, durationDays: 0.5, minAmount: 100, maxAmount: 2500, color: '#8B5CF6', priority: 1 },
+      { name: 'Alpha Reserve', description: 'Conservative strategy for capital preservation with low volatility exposure.', roi: 3.5, roiType: 'DAILY', durationHours: 24, durationDays: 1, minAmount: 2500, maxAmount: 25000, color: '#00D1FF', featured: true, priority: 2 },
+      { name: 'Sigma Prime', description: 'Balanced approach targeting steady growth through diversified yield strategies.', roi: 6.0, roiType: 'DAILY', durationHours: 48, durationDays: 2, minAmount: 10000, maxAmount: 100000, color: '#F0B90B', featured: true, priority: 3 },
+      { name: 'Omega Elite', description: 'Institutional-grade high yield for serious investors seeking maximum returns.', roi: 10.0, roiType: 'DAILY', durationHours: 72, durationDays: 3, minAmount: 50000, maxAmount: 500000, color: '#10B981', featured: true, priority: 4 },
+      { name: 'Titan Vault', description: 'Flagship institutional vault with priority liquidity and dedicated fund manager.', roi: 15.0, roiType: 'DAILY', durationHours: 120, durationDays: 5, minAmount: 250000, maxAmount: 5000000, color: '#FF6B35', featured: true, priority: 5 },
     ];
     for (const plan of investmentPlans) {
       await prisma.investmentPlan.create({ data: plan });
@@ -64,7 +73,7 @@ async function startServer() {
   await seedInitialData();
 
   const app = express();
-  const PORT = process.env.PORT || 3000;
+  const PORT = parseInt(process.env.PORT || '3000', 10);
 
   app.use(express.json({ limit: '10mb' }));
   app.use(cookieParser());
@@ -118,6 +127,13 @@ async function startServer() {
       if (!settings?.registrationEnabled) return res.status(403).json({ error: 'Registration is currently disabled' });
 
       const { email, password, referralCode } = req.body;
+      if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
+      if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Invalid email format' });
+
+      const existing = await prisma.user.findUnique({ where: { email } });
+      if (existing) return res.status(400).json({ error: 'Email already registered' });
+
       const hashedPassword = await bcrypt.hash(password, 10);
       const userRefCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
@@ -142,16 +158,17 @@ async function startServer() {
         }
       }
 
-      const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET);
-      res.cookie('token', token, { httpOnly: true });
-      res.json({ user: { id: user.id, email: user.email, role: user.role } });
+      const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
+      res.cookie('token', token, { httpOnly: true, sameSite: 'lax', maxAge: 24 * 60 * 60 * 1000 });
+      res.json({ user: { id: user.id, email: user.email, role: user.role, balance: user.balance, kycStatus: user.kycStatus, tier: user.tier || 'STANDARD' } });
     } catch (error: any) {
-      res.status(400).json({ error: error.message });
+      res.status(400).json({ error: error.message.includes('Unique') ? 'Email already registered' : error.message });
     }
   });
 
   app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -170,15 +187,19 @@ async function startServer() {
     } else { loginStreak = 1; }
 
     await prisma.user.update({ where: { id: user.id }, data: { lastLoginDate: now, loginStreak, lastActivityAt: now } });
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET);
-    res.cookie('token', token, { httpOnly: true });
-    res.json({ user: { id: user.id, email: user.email, role: user.role, balance: user.balance, kycStatus: user.kycStatus, status: user.status } });
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role, tier: user.tier || 'STANDARD' }, JWT_SECRET, { expiresIn: '24h' });
+    res.cookie('token', token, { httpOnly: true, sameSite: 'lax', maxAge: 24 * 60 * 60 * 1000 });
+    res.json({ user: { id: user.id, email: user.email, role: user.role, balance: user.balance, kycStatus: user.kycStatus, status: user.status, tier: user.tier || 'STANDARD' } });
   });
 
   app.post('/api/auth/logout', (req, res) => { res.clearCookie('token'); res.json({ message: 'Logged out' }); });
 
   app.get('/api/auth/me', authenticateToken, async (req: any, res) => {
-    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { id: true, email: true, role: true, balance: true, status: true, kycStatus: true, referralCode: true, referredBy: true, loginStreak: true, lastLoginDate: true, avatar: true, dashboardLayout: true, tier: true, createdAt: true }
+    });
+    if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ user });
   });
 
@@ -287,7 +308,8 @@ async function startServer() {
 
     const user = await prisma.user.findUnique({ where: { id: req.user.id } });
     if (!user) return res.status(404).json({ error: 'User not found' });
-    if (user.pin !== pin) return res.status(400).json({ error: 'Invalid PIN' });
+    const pinMatch = user.pin.startsWith('$2b') ? await bcrypt.compare(pin, user.pin) : user.pin === pin;
+    if (!pinMatch) return res.status(400).json({ error: 'Invalid PIN' });
 
     const settings = await prisma.platformSettings.findUnique({ where: { id: 'default' } });
     const fee = amount * (settings?.withdrawalFeePercent || 2) / 100;
@@ -355,7 +377,7 @@ async function startServer() {
   });
 
   app.post('/api/investments/:id/claim', authenticateToken, async (req: any, res) => {
-    const investment = await prisma.investment.findUnique({ where: { id: req.params.id } });
+    const investment = await prisma.investment.findUnique({ where: { id: req.params.id }, include: { plan: true } });
     if (!investment || investment.userId !== req.user.id) return res.status(404).json({ error: 'Investment not found' });
     if (investment.status !== 'ACTIVE') return res.status(400).json({ error: 'Investment not active' });
 
@@ -396,9 +418,28 @@ async function startServer() {
   app.post('/api/auth/change-pin', authenticateToken, async (req: any, res) => {
     const { currentPin, newPin } = req.body;
     const user = await prisma.user.findUnique({ where: { id: req.user.id } });
-    if (!user || user.pin !== currentPin) return res.status(400). json({ error: 'Current PIN incorrect' });
-    await prisma.user.update({ where: { id: user.id }, data: { pin: newPin } });
+    const pinMatch = user.pin.startsWith('$2b') ? await bcrypt.compare(currentPin, user.pin) : user.pin === currentPin;
+    if (!pinMatch) return res.status(400).json({ error: 'Current PIN incorrect' });
+    const hashedPin = await bcrypt.hash(newPin, 10);
+    await prisma.user.update({ where: { id: user.id }, data: { pin: hashedPin } });
     res.json({ message: 'PIN updated successfully' });
+  });
+
+  app.post('/api/auth/upgrade-pro', authenticateToken, async (req: any, res) => {
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (user.tier === 'PRO') return res.status(400).json({ error: 'Already a PRO member' });
+    const upgradeFee = 500;
+    if (user.balance < upgradeFee) return res.status(400).json({ error: `Insufficient balance. PRO upgrade costs $${upgradeFee}.` });
+    await prisma.user.update({ where: { id: req.user.id }, data: { balance: { decrement: upgradeFee }, tier: 'PRO' } });
+    await prisma.transaction.create({ data: { userId: req.user.id, type: 'BONUS', amount: upgradeFee, description: 'PRO tier upgrade' } });
+    res.json({ message: 'Upgraded to PRO!', tier: 'PRO' });
+  });
+
+  app.get('/api/auth/security-status', authenticateToken, async (req: any, res) => {
+    const user = await prisma.user.findUnique({ where: { id: req.user.id }, select: { tier: true, pin: true, kycStatus: true } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json({ tier: user.tier || 'STANDARD', pinEnabled: user.pin && user.pin !== '' && user.pin !== '$2b', kycApproved: user.kycStatus === 'APPROVED' });
   });
 
   app.get('/api/transactions', authenticateToken, async (req: any, res) => {
@@ -411,6 +452,23 @@ async function startServer() {
     res.json(prizes);
   });
 
+  app.post('/api/spin/spin', authenticateToken, async (req: any, res) => {
+    const prizes = await prisma.spinPrize.findMany({ where: { active: true } });
+    if (prizes.length === 0) return res.status(400).json({ error: 'No prizes available' });
+
+    const totalProb = prizes.reduce((sum, p) => sum + p.probability, 0);
+    let rand = Math.random() * totalProb;
+    let selected: any = prizes[0];
+    for (const prize of prizes) {
+      rand -= prize.probability;
+      if (rand <= 0) { selected = prize; break; }
+    }
+
+    await prisma.user.update({ where: { id: req.user.id }, data: { balance: { increment: selected.rewardAmount }, totalEarned: { increment: selected.rewardAmount } } });
+    await prisma.transaction.create({ data: { userId: req.user.id, type: 'SPIN_WIN', amount: selected.rewardAmount, description: `Won ${selected.rewardAmount} from Spin Wheel` } });
+    res.json({ prize: selected });
+  });
+
   app.post('/api/spin/claim', authenticateToken, async (req: any, res) => {
     const { prizeId } = req.body;
     const prize = await prisma.spinPrize.findUnique({ where: { id: prizeId } });
@@ -419,6 +477,48 @@ async function startServer() {
     await prisma.user.update({ where: { id: req.user.id }, data: { balance: { increment: prize.rewardAmount } } });
     await prisma.transaction.create({ data: { userId: req.user.id, type: 'SPIN_WIN', amount: prize.rewardAmount, description: `Won ${prize.rewardAmount} from Spin Wheel` } });
     res.json({ message: 'Claimed successfully', prize });
+  });
+
+  app.post('/api/rewards/daily-claim', authenticateToken, async (req: any, res) => {
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const alreadyClaimed = await prisma.transaction.findFirst({
+      where: { userId: req.user.id, type: 'BONUS', createdAt: { gte: today }, description: { contains: 'Daily reward' } }
+    });
+    if (alreadyClaimed) return res.status(400).json({ error: 'Already claimed today. Come back tomorrow!' });
+
+    const streak = Math.max(user.loginStreak, 1);
+    const rewardAmount = 5 * streak;
+    await prisma.user.update({ where: { id: req.user.id }, data: { balance: { increment: rewardAmount }, totalEarned: { increment: rewardAmount } } });
+    await prisma.transaction.create({ data: { userId: req.user.id, type: 'BONUS', amount: rewardAmount, description: `Daily reward: $${rewardAmount} (${streak}x streak)` } });
+    res.json({ reward: rewardAmount, streak });
+  });
+
+  app.get('/api/referrals/stats', authenticateToken, async (req: any, res) => {
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const settings = await prisma.platformSettings.findUnique({ where: { id: 'default' } });
+    const referredUsers = await prisma.user.findMany({ where: { referredBy: user.referralCode } });
+    const referralTransactions = await prisma.transaction.findMany({ where: { userId: req.user.id, type: 'REFERRAL' } });
+    const totalEarned = referralTransactions.reduce((sum, t) => sum + t.amount, 0);
+    res.json({ invitedCount: referredUsers.length, totalEarned, bonusRate: settings?.referralBonus || 5 });
+  });
+
+  app.get('/api/referrals/list', authenticateToken, async (req: any, res) => {
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const referredUsers = await prisma.user.findMany({
+      where: { referredBy: user.referralCode },
+      select: { email: true, createdAt: true, balance: true, status: true, totalDeposited: true }
+    });
+    const referrals = referredUsers.map(u => {
+      const status = u.totalDeposited > 0 ? 'Active' : 'Pending';
+      return { email: u.email, date: u.createdAt.toISOString().split('T')[0], status, bonus: u.totalDeposited > 0 ? (u.totalDeposited * 0.03) : 0 };
+    });
+    res.json(referrals);
   });
 
   app.post('/api/kyc/upload', authenticateToken, async (req: any, res) => {
@@ -436,7 +536,16 @@ async function startServer() {
     res.json({ message: 'Ticket created' });
   });
 
-  // Railway fix: bind to 0.0.0.0
+  app.get('/api/support/tickets', authenticateToken, async (req: any, res) => {
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    const tickets = await prisma.supportTicket.findMany({
+      where: { userId: user!.id },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(tickets);
+  });
+
+  // ==================== ADMIN API ENDPOINTS ====================
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ Server running on port ${PORT} (bind 0.0.0.0) — Railway compatible`);
   });

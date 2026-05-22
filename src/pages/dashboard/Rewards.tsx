@@ -1,16 +1,29 @@
 import React, { useEffect, useState } from 'react';
-import { Award, Zap, CheckCircle2, CircleDashed } from 'lucide-react';
+import { Award, Zap, CheckCircle2, CircleDashed, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function RewardsPage() {
   const [stats, setStats] = useState<any>(null);
+  const [claiming, setClaiming] = useState(false);
 
   useEffect(() => {
-    fetch('/api/user/stats').then(r => r.json()).then(setStats);
+    fetch('/api/user/stats').then(r => r.json()).then(setStats).catch(() => toast.error('Failed to load stats'));
   }, []);
 
-  const claimDaily = () => {
-    toast.success('Daily reward claimed! +$5 added to balance');
+  const claimDaily = async () => {
+    setClaiming(true);
+    try {
+      const res = await fetch('/api/rewards/daily-claim', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      if (res.ok) {
+        const data = await res.json();
+        toast.success(`Daily reward claimed! +$${data.reward} added to balance (${data.streak}x streak)`);
+        setStats((prev: any) => ({ ...prev, loginStreak: data.streak }));
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Failed to claim reward');
+      }
+    } catch { toast.error('Network error claiming reward'); }
+    setClaiming(false);
   };
 
   const streak = stats?.loginStreak || 0;
@@ -66,12 +79,13 @@ export default function RewardsPage() {
              <h4 className="text-2xl font-bold mb-2">Claim Today's Reward</h4>
              <p className="text-gray-400 text-sm">Don't break your streak! Every continuous login increases your daily bonus multiplier.</p>
            </div>
-           <button 
-             onClick={claimDaily}
-             className="px-10 py-4 gradient-teal text-slate-900 font-bold rounded-xl shadow-[0_0_30px_rgba(0,245,255,0.3)] hover:scale-105 active:scale-95 transition-all"
-           >
-             Claim $5.00
-           </button>
+            <button 
+              onClick={claimDaily}
+              disabled={claiming}
+              className="px-10 py-4 gradient-teal text-slate-900 font-bold rounded-xl shadow-[0_0_30px_rgba(0,245,255,0.3)] hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+            >
+              {claiming ? <><Loader2 className="animate-spin inline" size={18} /> Claiming...</> : `Claim $${Math.max(streak, 1) * 5}.00`}
+            </button>
         </div>
       </div>
 

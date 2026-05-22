@@ -9,28 +9,35 @@ export default function WithdrawalsPage() {
 
   const fetchWithdrawals = async () => {
     setLoading(true);
-    const params = filter ? `?status=${filter}` : '';
-    const res = await fetch(`/api/admin/withdrawals${params}`);
-    const data = await res.json();
-    setWithdrawals(data);
-    setLoading(false);
+    try {
+      const params = filter ? `?status=${filter}` : '';
+      const res = await fetch(`/api/admin/withdrawals${params}`);
+      if (res.ok) setWithdrawals(await res.json());
+      else toast.error('Failed to load withdrawals');
+    } catch (e) { toast.error('Network error loading withdrawals'); }
+    finally { setLoading(false); }
   };
 
   useEffect(() => { fetchWithdrawals(); }, [filter]);
 
   const handleApprove = async (id: string) => {
-    const res = await fetch(`/api/admin/withdrawals/${id}/approve`, { method: 'POST' });
-    if (res.ok) { toast.success('Withdrawal approved. Funds deducted from user.'); fetchWithdrawals(); }
+    try {
+      const res = await fetch(`/api/admin/withdrawals/${id}/approve`, { method: 'POST' });
+      if (res.ok) { toast.success('Withdrawal approved. Funds deducted from user.'); fetchWithdrawals(); }
+      else { const d = await res.json().catch(() => ({})); toast.error(d.error || 'Approval failed'); }
+    } catch (e) { toast.error('Network error approving withdrawal'); }
   };
 
   const handleReject = async (id: string) => {
     const reason = prompt('Enter rejection reason:') || 'Rejected by admin';
-    const res = await fetch(`/api/admin/withdrawals/${id}/reject`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason })
-    });
-    if (res.ok) { toast.success('Withdrawal rejected. Funds returned.'); fetchWithdrawals(); }
+    try {
+      const res = await fetch(`/api/admin/withdrawals/${id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason })
+      });
+      if (res.ok) { toast.success('Withdrawal rejected. Funds returned.'); fetchWithdrawals(); }
+    } catch { toast.error('Network error'); }
   };
 
   if (loading) return <div className="animate-pulse text-center py-20 text-gray-500 text-sm">Loading withdrawals...</div>;

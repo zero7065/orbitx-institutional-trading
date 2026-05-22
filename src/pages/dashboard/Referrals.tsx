@@ -1,12 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { Share2, Link as LinkIcon, UserPlus, Trophy, ChevronRight, Copy } from 'lucide-react';
+import { Share2, Link as LinkIcon, UserPlus, Trophy, ChevronRight, Copy, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function ReferralsPage() {
   const [user, setUser] = useState<any>(null);
+  const [stats, setStats] = useState<any>(null);
+  const [referrals, setReferrals] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/auth/me').then(r => r.json()).then(data => setUser(data.user));
+    Promise.all([
+      fetch('/api/auth/me').then(r => r.json()).then(data => setUser(data.user)).catch(() => {}),
+      fetch('/api/referrals/stats').then(r => r.json()).then(setStats).catch(() => {}),
+      fetch('/api/referrals/list').then(r => r.json()).then(setReferrals).catch(() => {})
+    ]).finally(() => setLoading(false));
   }, []);
 
   const referralLink = `${window.location.origin}/auth/register?ref=${user?.referralCode}`;
@@ -26,11 +33,11 @@ export default function ReferralsPage() {
         <div className="flex gap-4">
            <div className="glass-card px-8 py-4 text-center min-w-[140px]">
               <div className="text-xs font-bold text-gray-500 uppercase mb-1">Invited</div>
-              <div className="text-2xl font-bold">12 Users</div>
+              <div className="text-2xl font-bold">{loading ? <Loader2 className="animate-spin inline" size={18} /> : `${stats?.invitedCount || 0} Users`}</div>
            </div>
            <div className="glass-card px-8 py-4 text-center min-w-[140px] border-b-2 border-brand-teal">
               <div className="text-xs font-bold text-gray-500 uppercase mb-1">Total Earned</div>
-              <div className="text-2xl font-bold text-brand-teal">$450.00</div>
+              <div className="text-2xl font-bold text-brand-teal">{loading ? <Loader2 className="animate-spin inline" size={18} /> : `$${(stats?.totalEarned || 0).toFixed(2)}`}</div>
            </div>
         </div>
       </div>
@@ -75,32 +82,34 @@ export default function ReferralsPage() {
         </div>
 
         <div className="glass-card p-10">
-           <div className="flex items-center justify-between mb-8">
-             <h3 className="text-xl font-bold">Recent Referrals</h3>
-             <span className="text-xs font-bold text-brand-teal bg-brand-teal/10 px-3 py-1 rounded-full">+ $25/User</span>
-           </div>
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-xl font-bold">Recent Referrals</h3>
+              <span className="text-xs font-bold text-brand-teal bg-brand-teal/10 px-3 py-1 rounded-full">+ ${stats?.bonusRate || 5}/User</span>
+            </div>
 
-           <div className="space-y-4">
-              {[
-                { email: 'alex.smith@...', date: '2024-03-20', status: 'Active', bonus: 10.00 },
-                { email: 'sarah.jones@...', date: '2024-03-18', status: 'Pending', bonus: 0.00 },
-                { email: 'mike_invest@...', date: '2024-03-15', status: 'Active', bonus: 25.00 },
-              ].map((ref, i) => (
-                <div key={i} className="flex items-center justify-between p-4 bg-white/2 rounded-xl border border-white/5">
-                   <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-gray-400 font-bold uppercase">{ref.email[0]}</div>
-                      <div>
-                         <div className="font-bold text-sm">{ref.email}</div>
-                         <div className="text-[10px] text-gray-500">{ref.date}</div>
-                      </div>
-                   </div>
-                   <div className="text-right">
-                      <div className={`text-xs font-bold ${ref.status === 'Active' ? 'text-green-400' : 'text-gray-500'}`}>{ref.status}</div>
-                      <div className="text-sm font-bold text-brand-teal">+ ${ref.bonus.toFixed(2)}</div>
-                   </div>
-                </div>
-              ))}
-           </div>
+            <div className="space-y-4">
+              {loading ? (
+                <div className="flex justify-center py-4"><Loader2 className="animate-spin text-brand-teal" size={24} /></div>
+              ) : referrals.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-4">No referrals yet. Share your link to start earning!</p>
+              ) : (
+                referrals.map((ref: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between p-4 bg-white/2 rounded-xl border border-white/5">
+                     <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-gray-400 font-bold uppercase">{ref.email?.[0] || '?'}</div>
+                        <div>
+                           <div className="font-bold text-sm">{ref.email}</div>
+                           <div className="text-[10px] text-gray-500">{ref.date}</div>
+                        </div>
+                     </div>
+                     <div className="text-right">
+                        <div className={`text-xs font-bold ${ref.status === 'Active' ? 'text-green-400' : 'text-gray-500'}`}>{ref.status}</div>
+                        <div className="text-sm font-bold text-brand-teal">+ ${ref.bonus.toFixed(2)}</div>
+                     </div>
+                  </div>
+                ))
+              )}
+            </div>
         </div>
       </div>
     </div>

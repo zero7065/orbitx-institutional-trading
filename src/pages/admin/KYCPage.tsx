@@ -9,21 +9,29 @@ export default function KYCPage() {
 
   const fetchKYC = async () => {
     setLoading(true);
-    const res = await fetch('/api/admin/kyc');
-    const data = await res.json();
-    setPendingKycs(data);
-    setLoading(false);
+    try {
+      const res = await fetch('/api/admin/kyc');
+      if (res.ok) setPendingKycs(await res.json());
+      else toast.error('Failed to load KYC submissions');
+    } catch (e) {
+      toast.error('Network error loading KYC');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchKYC(); }, []);
 
   const handleKyc = async (userId: string, status: 'APPROVED' | 'REJECTED') => {
-    const res = await fetch(`/api/admin/kyc/${userId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status })
-    });
-    if (res.ok) { toast.success(`KYC ${status.toLowerCase()}`); setViewing(null); fetchKYC(); }
+    try {
+      const res = await fetch(`/api/admin/kyc/${userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      if (res.ok) { toast.success(`KYC ${status.toLowerCase()}`); setViewing(null); fetchKYC(); }
+      else { const d = await res.json().catch(() => ({})); toast.error(d.error || 'KYC action failed'); }
+    } catch (e) { toast.error('Network error'); }
   };
 
   if (loading) return <div className="animate-pulse text-center py-20 text-gray-500 text-sm">Loading KYC submissions...</div>;

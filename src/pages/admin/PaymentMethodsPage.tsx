@@ -25,10 +25,12 @@ export default function PaymentMethodsPage() {
   useEffect(() => { fetchMethods(); }, []);
 
   const fetchMethods = async () => {
-    const res = await fetch('/api/admin/payment-methods');
-    const data = await res.json();
-    setMethods(data);
-    setLoading(false);
+    try {
+      const res = await fetch('/api/admin/payment-methods');
+      if (res.ok) setMethods(await res.json());
+      else toast.error('Failed to load payment methods');
+    } catch (e) { toast.error('Network error loading methods'); }
+    finally { setLoading(false); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,18 +38,20 @@ export default function PaymentMethodsPage() {
     const details = { bankName: form.bankName, accountNumber: form.accountNumber, routingNumber: form.routingNumber };
     const payload = { name: form.name, type: form.type, provider: form.provider || null, details, minAmount: form.minAmount, maxAmount: form.maxAmount, feePercent: form.feePercent, enabled: form.enabled, sortOrder: form.sortOrder };
     
-    const url = editing ? `/api/admin/payment-methods/${editing.id}` : '/api/admin/payment-methods';
-    const res = await fetch(url, { method: editing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    try {
+      const url = editing ? `/api/admin/payment-methods/${editing.id}` : '/api/admin/payment-methods';
+      const res = await fetch(url, { method: editing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     
-    if (res.ok) {
-      toast.success(editing ? 'Payment method updated' : 'Payment method created');
-      setShowModal(false);
-      setEditing(null);
-      setForm({ name: '', type: 'BANK', provider: '', bankName: '', accountNumber: '', routingNumber: '', minAmount: 0, maxAmount: 100000, feePercent: 0, enabled: true, sortOrder: 0 });
-      fetchMethods();
-    } else {
-      toast.error('Failed to save payment method');
-    }
+      if (res.ok) {
+        toast.success(editing ? 'Payment method updated' : 'Payment method created');
+        setShowModal(false);
+        setEditing(null);
+        setForm({ name: '', type: 'BANK', provider: '', bankName: '', accountNumber: '', routingNumber: '', minAmount: 0, maxAmount: 100000, feePercent: 0, enabled: true, sortOrder: 0 });
+        fetchMethods();
+      } else {
+        toast.error('Failed to save payment method');
+      }
+    } catch { toast.error('Network error'); }
   };
 
   const handleDelete = async (id: string) => {

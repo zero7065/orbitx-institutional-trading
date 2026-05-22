@@ -28,30 +28,39 @@ export default function CryptoNetworksPage() {
 
   const fetchNetworks = async () => {
     setLoading(true);
-    const res = await fetch('/api/admin/crypto-networks');
-    const data = await res.json();
-    setNetworks(data);
-    setLoading(false);
+    try {
+      const res = await fetch('/api/admin/crypto-networks');
+      if (res.ok) setNetworks(await res.json());
+      else toast.error('Failed to load networks');
+    } catch (e) {
+      toast.error('Network error loading networks');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchNetworks(); }, []);
 
   const handleSave = async () => {
-    if (editing) {
-      const res = await fetch(`/api/admin/crypto-networks/${editing.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
-      });
-      if (res.ok) { toast.success('Network updated'); setEditing(null); fetchNetworks(); }
-    } else {
-      const res = await fetch('/api/admin/crypto-networks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
-      });
-      if (res.ok) { toast.success('Network created'); setShowAdd(false); setForm({}); fetchNetworks(); }
-    }
+    try {
+      if (editing) {
+        const res = await fetch(`/api/admin/crypto-networks/${editing.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(form)
+        });
+        if (res.ok) { toast.success('Network updated'); setEditing(null); fetchNetworks(); }
+        else { const d = await res.json().catch(() => ({})); toast.error(d.error || 'Update failed'); }
+      } else {
+        const res = await fetch('/api/admin/crypto-networks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(form)
+        });
+        if (res.ok) { toast.success('Network created'); setShowAdd(false); setForm({}); fetchNetworks(); }
+        else { const d = await res.json().catch(() => ({})); toast.error(d.error || 'Create failed'); }
+      }
+    } catch (e) { toast.error('Network error saving'); }
   };
 
   const toggleEnabled = async (network: CryptoNetwork) => {

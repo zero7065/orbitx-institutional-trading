@@ -20,32 +20,12 @@ const MOCK_LIVE_TRANSACTIONS = [
   { type: 'DEPOSIT', icon: '↓', user: 'ja**34', amount: '+$3,200', crypto: 'BTC', time: '52s ago', color: 'text-green-400' },
 ];
 
-const investmentPlans = [
-  {
-    name: 'Alpha Reserve', roi: '2.5%', duration: '24h', min: 100, max: 1000,
-    desc: 'Conservative strategy for capital preservation with low volatility exposure.',
-    highlights: ['Daily Returns', 'Principal Protected', 'Instant Liquidity'],
-    color: '#00D1FF'
-  },
-  {
-    name: 'Sigma Prime', roi: '5%', duration: '48h', min: 1001, max: 5000,
-    desc: 'Balanced approach targeting steady growth through diversified yield strategies.',
-    highlights: ['Compound Interest', 'Priority Support', 'Extended Leverage'],
-    color: '#F0B90B'
-  },
-  {
-    name: 'Omega Elite', roi: '10%', duration: '72h', min: 5001, max: 50000,
-    desc: 'Institutional-grade high yield for serious investors seeking maximum returns.',
-    highlights: ['Maximum Returns', 'Dedicated Manager', 'Zero Fee Exit'],
-    color: '#10B981'
-  },
-];
-
 export default function LandingPage() {
   const [mounted, setMounted] = useState(false);
   const [liveTxs, setLiveTxs] = useState(MOCK_LIVE_TRANSACTIONS.slice(0, 5));
   const [platformName, setPlatformName] = useState('OrbitX');
   const [platformSettings, setPlatformSettings] = useState<any>({});
+  const [investmentPlans, setInvestmentPlans] = useState<any[]>([]);
   const [stats, setStats] = useState({ users: 84200, volume: 14800000, active: 31250, countries: 189 });
 
   useEffect(() => {
@@ -54,6 +34,7 @@ export default function LandingPage() {
       if (data?.platformName) { setPlatformName(data.platformName); document.title = data.platformName; }
       setPlatformSettings(data);
     }).catch(() => {});
+    fetch('/api/investment-plans').then(r => r.json()).then(setInvestmentPlans).catch(() => {});
 
     const interval = setInterval(() => {
       setLiveTxs(prev => {
@@ -235,10 +216,13 @@ export default function LandingPage() {
           <p className="text-gray-400 max-w-2xl mx-auto font-medium">Select from our curated investment plans, each optimized for different risk profiles and capital requirements.</p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {investmentPlans.map((plan, i) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {investmentPlans.length === 0 ? (
+            <div className="col-span-full text-center py-12 text-gray-500 text-sm">Loading plans...</div>
+          ) : (
+            investmentPlans.slice(0, 6).map((plan, i) => (
             <motion.div
-              key={plan.name}
+              key={plan.id || plan.name}
               initial={{ opacity: 0, y: 40 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -251,33 +235,26 @@ export default function LandingPage() {
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: plan.color }} />
                 <h3 className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: plan.color }}>{plan.name}</h3>
-                {i === 2 && <span className="px-2 py-0.5 rounded bg-brand-gold/20 text-brand-gold text-[7px] font-black uppercase tracking-widest ml-2">Popular</span>}
+                {plan.featured && <span className="px-2 py-0.5 rounded bg-brand-gold/20 text-brand-gold text-[7px] font-black uppercase tracking-widest ml-2">Popular</span>}
               </div>
-              <div className="text-5xl font-black text-white mb-1 mt-2 tracking-tighter">{plan.roi} <span className="text-sm text-gray-600 block mt-1 tracking-widest uppercase font-black">Daily Return</span></div>
-              <p className="text-sm text-gray-400 my-6 leading-relaxed font-medium">{plan.desc}</p>
-              <div className="space-y-3 mb-8">
-                {plan.highlights.map(h => (
-                  <div key={h} className="flex items-center gap-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                    <Star size={10} style={{ color: plan.color }} />
-                    {h}
-                  </div>
-                ))}
-              </div>
+              <div className="text-5xl font-black text-white mb-1 mt-2 tracking-tighter">{plan.roi}% <span className="text-sm text-gray-600 block mt-1 tracking-widest uppercase font-black">Daily Return</span></div>
+              <p className="text-sm text-gray-400 my-6 leading-relaxed font-medium">{plan.description}</p>
               <div className="mt-auto border-t border-white/5 pt-6 space-y-4">
                 <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
                   <span className="text-gray-500">Range</span>
-                  <span className="text-white">${plan.min.toLocaleString()} - ${plan.max.toLocaleString()}</span>
+                  <span className="text-white">${plan.minAmount.toLocaleString()} - ${plan.maxAmount.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
                   <span className="text-gray-500">Duration</span>
-                  <span className="text-white">{plan.duration}</span>
+                  <span className="text-white">{plan.durationHours}h</span>
                 </div>
                 <Link to="/auth/register" className="w-full py-4 rounded-2xl bg-white/5 border border-white/10 font-black text-xs uppercase tracking-[0.2em] text-white hover:bg-gradient-to-r hover:from-brand-teal hover:to-blue-600 hover:text-[#0B0E11] hover:border-transparent transition-all text-center block">
                   Deploy Capital
                 </Link>
               </div>
             </motion.div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 

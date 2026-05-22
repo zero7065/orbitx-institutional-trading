@@ -12,30 +12,44 @@ export default function AnnouncementsPage() {
 
   const fetchAnnouncements = async () => {
     setLoading(true);
-    const res = await fetch('/api/admin/announcements');
-    const data = await res.json();
-    setAnnouncements(data);
-    setLoading(false);
+    try {
+      const res = await fetch('/api/admin/announcements');
+      if (res.ok) {
+        setAnnouncements(await res.json());
+      } else {
+        toast.error('Failed to load announcements');
+      }
+    } catch (e) {
+      toast.error('Network error loading announcements');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchAnnouncements(); }, []);
 
   const handleCreate = async () => {
-    const res = await fetch('/api/admin/announcements', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form)
-    });
-    if (res.ok) { toast.success('Announcement created'); setShowCreate(false); setForm({ title: '', message: '', type: 'INFO', active: true, showOnLanding: true, showOnDashboard: true }); fetchAnnouncements(); }
+    try {
+      const res = await fetch('/api/admin/announcements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      });
+      if (res.ok) { toast.success('Announcement created'); setShowCreate(false); setForm({ title: '', message: '', type: 'INFO', active: true, showOnLanding: true, showOnDashboard: true }); fetchAnnouncements(); }
+      else { const d = await res.json().catch(() => ({})); toast.error(d.error || 'Failed to create'); }
+    } catch (e) { toast.error('Network error creating announcement'); }
   };
 
   const handleBroadcast = async () => {
-    const res = await fetch('/api/admin/broadcast', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(broadcast)
-    });
-    if (res.ok) { const data = await res.json(); toast.success(`Broadcast sent to ${data.count} users`); setShowBroadcast(false); setBroadcast({ title: '', message: '', type: 'INFO' }); }
+    try {
+      const res = await fetch('/api/admin/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(broadcast)
+      });
+      if (res.ok) { const data = await res.json(); toast.success(`Broadcast sent to ${data.count ?? 'all'} users`); setShowBroadcast(false); setBroadcast({ title: '', message: '', type: 'INFO' }); }
+      else { const d = await res.json().catch(() => ({})); toast.error(d.error || 'Broadcast failed'); }
+    } catch (e) { toast.error('Network error broadcasting'); }
   };
 
   if (loading) return <div className="animate-pulse text-center py-20 text-gray-500 text-sm">Loading announcements...</div>;

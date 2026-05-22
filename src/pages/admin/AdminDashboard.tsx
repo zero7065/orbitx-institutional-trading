@@ -16,9 +16,11 @@ export default function AdminDashboard() {
         fetch('/api/admin/users'),
         fetch('/api/admin/withdrawals')
       ]);
-      setStats(await statsRes.json());
-      setUsers(await usersRes.json());
-      setWithdrawals(await withRes.json());
+      if (statsRes.ok) setStats(await statsRes.json());
+      if (usersRes.ok) setUsers(await usersRes.json());
+      if (withRes.ok) setWithdrawals(await withRes.json());
+    } catch (e) {
+      toast.error('Failed to load admin data');
     } finally {
       setLoading(false);
     }

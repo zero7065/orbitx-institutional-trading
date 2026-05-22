@@ -15,7 +15,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const location = useLocation();
-  const { user, logout, stats, fetchStats } = useAuth();
+  const { user, logout, stats, fetchStats, platformSettings } = useAuth();
 
   useEffect(() => {
     const handleResize = () => { const m = window.innerWidth < 1024; setIsMobile(m); if (m) setSidebarOpen(false); else setSidebarOpen(true); };
@@ -66,7 +66,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-teal to-blue-600 flex items-center justify-center shrink-0">
               <TrendingUp size={22} className="text-[#0B0E11]" />
             </div>
-            {sidebarOpen && <span className="font-black text-xl tracking-tighter text-white uppercase italic">{document.title}</span>}
+            {sidebarOpen && <span className="font-black text-xl tracking-tighter text-white uppercase italic">{platformSettings?.platformName || 'OrbitX'}</span>}
           </div>
 
           <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">
@@ -95,6 +95,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </div>
                   <div className="overflow-hidden">
                     <p className="text-xs font-black text-white truncate w-28">{user?.email}</p>
+                      {user?.tier === 'PRO' && <span className="text-[7px] px-1.5 py-0.5 bg-brand-gold/20 text-brand-gold rounded-full font-black uppercase tracking-widest ml-1">PRO</span>}
                     <div className="flex items-center gap-1 mt-1">
                       <span className={`w-1.5 h-1.5 rounded-full ${user?.kycStatus === 'APPROVED' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,211,238,0.5)]' : 'bg-brand-gold animate-pulse'}`}></span>
                       <span className="text-[8px] text-gray-500 uppercase font-black">{user?.kycStatus === 'APPROVED' ? 'Verified' : 'Unverified'}</span>

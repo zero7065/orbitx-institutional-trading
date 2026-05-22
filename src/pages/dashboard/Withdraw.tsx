@@ -25,7 +25,7 @@ export default function WithdrawPage() {
 
   const handleScan = () => {
     setScanning(true);
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 }, false);
       scanner.render((decodedText) => {
         setAddress(decodedText);
@@ -34,6 +34,7 @@ export default function WithdrawPage() {
         toast.success("Address scanned successfully");
       }, () => {});
     }, 100);
+    return () => { clearTimeout(timer); };
   };
 
   const [step, setStep] = useState<'details' | 'confirmation'>('details');

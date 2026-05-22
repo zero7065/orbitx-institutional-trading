@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, Search, Monitor, Smartphone, Globe, Eye, EyeOff, Clock } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function AdminSessionsPage() {
   const [sessions, setSessions] = useState<any[]>([]);
@@ -8,9 +9,18 @@ export default function AdminSessionsPage() {
   useEffect(() => { fetchSessions(); }, []);
 
   const fetchSessions = async () => {
-    const res = await fetch('/api/admin/sessions');
-    setSessions(await res.json());
-    setLoading(false);
+    try {
+      const res = await fetch('/api/admin/sessions');
+      if (res.ok) {
+        setSessions(await res.json());
+      } else {
+        toast.error('Failed to load sessions');
+      }
+    } catch (e) {
+      toast.error('Network error loading sessions');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) return <div className="animate-pulse text-center py-20 text-gray-500">Loading sessions...</div>;
