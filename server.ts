@@ -396,7 +396,7 @@ async function startServer() {
   app.post('/api/auth/change-pin', authenticateToken, async (req: any, res) => {
     const { currentPin, newPin } = req.body;
     const user = await prisma.user.findUnique({ where: { id: req.user.id } });
-    if (!user || user.pin !== currentPin) return res.status(400).json({ error: 'Current PIN incorrect' });
+    if (!user || user.pin !== currentPin) return res.status(400). json({ error: 'Current PIN incorrect' });
     await prisma.user.update({ where: { id: user.id }, data: { pin: newPin } });
     res.json({ message: 'PIN updated successfully' });
   });
